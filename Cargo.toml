@@ -5,10 +5,12 @@ members = [
     "common/common-web",
     "common/common-web3",
     "auth-service",
+    "common/common-core",
 ]
 
 [workspace.dependencies]
 # 本地公共库
+common-core = { path = "common/common-core" }
 common-redis = { path = "common/common-redis" }
 common-web = { path = "common/common-web" }
 common-web3 = { path = "common/common-web3" }
@@ -43,6 +45,8 @@ async-trait = "0.1"
 anyhow = "1"
 
 serde_yml = "0.0.10"
-
+rs-snowflake = "0.6.0"
+thiserror = "2.0.17"
 # Web3
 web3 = "0.19.0"
+hex = "0.4"

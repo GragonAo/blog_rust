@@ -62,14 +62,15 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "common-core",
  "common-redis",
  "common-web",
  "common-web3",
  "jsonwebtoken",
+ "rs-snowflake",
  "serde",
  "serde_json",
  "tokio",
- "web3",
 ]
 
 [[package]]
@@ -310,11 +311,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "common-redis"
 version = "0.1.0"
 dependencies = [
  "bb8",
  "bb8-redis",
+ "common-core",
  "redis",
  "serde",
  "tokio",
@@ -323,10 +333,18 @@ dependencies = [
 [[package]]
 name = "common-web"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "common-web3"
 version = "0.1.0"
+dependencies = [
+ "common-core",
+ "hex",
+ "web3",
+]
 
 [[package]]
 name = "const_format"
@@ -1644,6 +1662,12 @@ dependencies = [
  "bytes",
  "rustc-hex",
 ]
+
+[[package]]
+name = "rs-snowflake"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e60ef3b82994702bbe4e134d98aadca4b49ed04440148985678d415c68127666"
 
 [[package]]
 name = "rustc-hex"

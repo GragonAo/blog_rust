@@ -2,7 +2,8 @@ use bb8_redis::{
     RedisConnectionManager,
     bb8::{Pool, PooledConnection},
 };
-use redis::{RedisError, cmd};
+use common_core::{AppError, AppResult};
+use redis::{AsyncCommands, cmd};
 
 pub mod application;
 
@@ -15,30 +16,67 @@ pub struct RedisClient {
 }
 
 impl RedisClient {
-    pub async fn new(
-        redis_config: application::Redis,
-    ) -> Result<Self, bb8_redis::bb8::RunError<RedisError>> {
-        let manager = RedisConnectionManager::new(redis_config.url())?;
+    pub async fn new(redis_config: application::Redis) -> AppResult<Self> {
+        let manager = RedisConnectionManager::new(redis_config.url())
+            .map_err(|e| AppError::redis(format!("create manager failed: {e}")))?;
 
         let pool = Pool::builder()
             .max_size(redis_config.pool_size)
             .build(manager)
-            .await?;
+            .await
+            .map_err(|e| AppError::redis(format!("create pool failed: {e}")))?;
 
         Ok(Self { pool })
     }
 
-    pub async fn get(&self) -> Result<Connection<'_>, bb8_redis::bb8::RunError<RedisError>> {
-        self.pool.get().await
+    pub async fn get(&self) -> AppResult<Connection<'_>> {
+        self.pool
+            .get()
+            .await
+            .map_err(|e| AppError::redis(format!("get connection failed: {e}")))
     }
 
-    pub async fn ping(&self) -> Result<(), bb8_redis::bb8::RunError<RedisError>> {
+    pub async fn ping(&self) -> AppResult<()> {
         let mut conn = self.get().await?;
 
         cmd("PING")
             .query_async::<()>(&mut *conn)
             .await
-            .map_err(bb8_redis::bb8::RunError::User)
+            .map_err(|e| AppError::redis(format!("PING failed: {e}")))
+    }
+
+    // --- 封装常用命令 ---
+
+    /// 设置带过期时间的字符串 (SETEX)
+    pub async fn set_ex(&self, key: &str, value: &str, seconds: u64) -> AppResult<()> {
+        let mut conn = self.get().await?;
+        conn.set_ex(key, value, seconds)
+            .await
+            .map_err(|e| AppError::redis(format!("SETEX failed: {e}")))
+    }
+
+    /// 检查 Key 是否存在
+    pub async fn exists(&self, key: &str) -> AppResult<bool> {
+        let mut conn = self.get().await?;
+        conn.exists(key)
+            .await
+            .map_err(|e| AppError::redis(format!("EXISTS failed: {e}")))
+    }
+
+    /// 删除 Key
+    pub async fn del(&self, key: &str) -> AppResult<()> {
+        let mut conn = self.get().await?;
+        conn.del(key)
+            .await
+            .map_err(|e| AppError::redis(format!("DEL failed: {e}")))
+    }
+
+    /// 获取字符串值
+    pub async fn get_str(&self, key: &str) -> AppResult<Option<String>> {
+        let mut conn = self.get().await?;
+        conn.get(key)
+            .await
+            .map_err(|e| AppError::redis(format!("GET failed: {e}")))
     }
 }
 
