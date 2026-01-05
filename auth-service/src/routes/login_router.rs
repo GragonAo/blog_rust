@@ -4,65 +4,80 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
+use common_core::{AppError, utils::jwt_utils::JwtUtils};
+use common_web::domain::r::R;
 use common_web3::chain::Chain;
 
+use crate::error::ApiError;
+
 use crate::{
-    AppServiceState,
+    AppState,
     domain::{request::login::LoginWeb3Request, response::login::LoginResponse},
 };
-use common_web::domain::r::R;
 
-pub fn router() -> Router<AppServiceState> {
+pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/login/web3", post(login_web3_wallet))
-        .route("/login/nonce/{chain_id}", get(get_login_web3_nonce))
+        .route("/web3-login", post(login_web3_wallet))
+        .route("/web3-login/nonce/{chain_id}", get(get_login_web3_nonce))
 }
 
 async fn get_login_web3_nonce(
     Path(chain_id): Path<u64>,
-    State(state): State<AppServiceState>,
-) -> Json<R<String>> {
-    if let Err(e) = Chain::try_from(chain_id) {
-        return Json(R::error(e.to_string(), StatusCode::BAD_REQUEST.as_u16()));
-    }
-    match state.login_service.get_login_web3_nonce(chain_id).await {
-        Ok(nonce) => Json(R::ok(nonce)),
-        Err(err) => Json(R::error(
-            err.to_string(),
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-        )),
-    }
+    State(state): State<AppState>,
+) -> Result<Json<R<String>>, ApiError> {
+    // 使用 ApiError
+    Chain::try_from(chain_id)
+        .map_err(|e| AppError::Internal(format!("Invalid chain id: {}", e)))?;
+
+    let nonce = state
+        .login_service
+        .get_login_web3_nonce(chain_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(R::ok(nonce)))
 }
 
 async fn login_web3_wallet(
-    State(state): State<AppServiceState>,
+    State(state): State<AppState>,
     Json(body): Json<LoginWeb3Request>,
-) -> Json<R<LoginResponse>> {
-    match state
+) -> Result<Json<R<LoginResponse>>, ApiError> {
+    // 2. 这里必须从 AppError 改为 ApiError
+    let recovered_addr = state
         .login_service
         .login_web3_wallet(body.signature, body.message)
         .await
-    {
-        Ok(recovered_addr) => {
-            if recovered_addr == body.address {
-                //TODO 生成JWT
-                Json(R::ok(LoginResponse {
-                    access_token: "header.payload.signature".to_string(),
-                    expire_in: 3600,
-                    refresh_token: "refresh_token_here".to_string(),
-                    refresh_expire_in: 86400,
-                    client_id: "test".to_string(),
-                }))
-            } else {
-                Json(R::error(
-                    "Address mismatch",
-                    StatusCode::UNAUTHORIZED.as_u16(),
-                ))
-            }
-        }
-        Err(err) => Json(R::error(
-            err.to_string(),
-            StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-        )),
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if recovered_addr != body.address {
+        // 返回业务错误 R，包装在 Ok 中
+        return Ok(Json(R::error(
+            "Address mismatch",
+            StatusCode::UNAUTHORIZED.as_u16(),
+        )));
     }
+
+    let user_id = 123;
+    let jwt_config = &state.app_config.jwt;
+
+    // 因为实现了 From<AppError> for ApiError，这里的 ? 现在可以工作了
+    let access_token = JwtUtils::create_token(
+        jwt_config.secret.clone(),
+        user_id,
+        jwt_config.expiration_hours,
+    )?;
+
+    let refresh_token = JwtUtils::create_token(
+        jwt_config.secret.clone(),
+        user_id,
+        jwt_config.refresh_expiration_hours,
+    )?;
+
+    Ok(Json(R::ok(LoginResponse {
+        access_token,
+        expire_in: jwt_config.expiration_hours * 3600,
+        refresh_token,
+        refresh_expire_in: jwt_config.refresh_expiration_hours * 3600,
+        client_id: "test".to_string(),
+    })))
 }

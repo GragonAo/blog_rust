@@ -65,7 +65,7 @@ impl LoginService for LoginServiceImpl {
             .parse::<u64>()
             .map_err(|_| AppError::Internal("Invalid chain ID stored in nonce".into()))?;
         let chain = Chain::try_from(chain_id)?;
-        // 调用底层：换出地址
+        // 调用底层Web3工具：换出地址
         let recovered_addr = Web3Recover::get_address(chain, &message, &signature)?;
         Ok(recovered_addr)
     }

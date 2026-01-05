@@ -1,52 +1,68 @@
 [workspace]
 resolver = "2"
 members = [
+    "common/common-core",
     "common/common-redis",
     "common/common-web",
     "common/common-web3",
     "auth-service",
-    "common/common-core",
 ]
 
 [workspace.dependencies]
-# 本地公共库
+# --- 本地公共模块 ---
 common-core = { path = "common/common-core" }
 common-redis = { path = "common/common-redis" }
 common-web = { path = "common/common-web" }
 common-web3 = { path = "common/common-web3" }
 
-# 核心框架
+# --- Web 框架与网络 ---
 axum = "0.8.8"
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+
+# --- RPC 与协议 (gRPC) ---
 tonic = "0.14.2"
 prost = "0.14.1"
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
-# 数据库与工具
+tonic-build = "0.14.2"
+
+# --- 序列化与数据格式 ---
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yml = "0.0.10"
+hex = "0.4"
+
+# --- 数据库与存储 ---
+# Postgres (sqlx)
 sqlx = { version = "0.8", features = [
     "runtime-tokio",
     "tls-rustls",
     "postgres",
     "macros",
+    "chrono",        # 建议开启 chrono 支持，方便处理数据库时间
 ] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tonic-build = "0.14.2"
-bb8 = "0.9"
-bb8-redis = "0.26.0"
+# Redis (bb8 连结池)
 redis = { version = "1", default-features = false, features = [
     "tokio-comp",
     "bb8",
     "connection-manager",
 ] }
+bb8 = "0.9"
+bb8-redis = "0.26.0"
+
+# --- 安全与认证 ---
+# 使用 aws_lc_rs 提升性能和兼容性
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+
+# --- Web3 与区块链 ---
+web3 = "0.19.0"
+
+# --- 日志与可观测性 ---
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# --- 工具类 ---
 async-trait = "0.1"
 anyhow = "1"
-
-serde_yml = "0.0.10"
-rs-snowflake = "0.6.0"
 thiserror = "2.0.17"
-# Web3
-web3 = "0.19.0"
-hex = "0.4"
+chrono = { version = "0.4.42", features = ["serde"] }
+rs-snowflake = "0.6.0"

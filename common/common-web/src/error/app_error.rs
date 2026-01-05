@@ -1,1 +1,0 @@
-struct AppError(anyhow::Error);
