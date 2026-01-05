@@ -2,9 +2,17 @@
 resolver = "2"
 members = [
     "common/common-redis",
+    "common/common-web",
+    "common/common-web3",
+    "auth-service",
 ]
 
 [workspace.dependencies]
+# 本地公共库
+common-redis = { path = "common/common-redis" }
+common-web = { path = "common/common-web" }
+common-web3 = { path = "common/common-web3" }
+
 # 核心框架
 axum = "0.8.8"
 tokio = { version = "1.0", features = ["full"] }
@@ -12,13 +20,29 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tonic = "0.14.2"
 prost = "0.14.1"
-
+jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
 # 数据库与工具
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros"] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 tonic-build = "0.14.2"
 bb8 = "0.9"
-redis = { version = "1", default-features = false, features = ["tokio-comp", "bb8"] }
+bb8-redis = "0.26.0"
+redis = { version = "1", default-features = false, features = [
+    "tokio-comp",
+    "bb8",
+    "connection-manager",
+] }
+async-trait = "0.1"
+anyhow = "1"
 
+serde_yml = "0.0.10"
+
+# Web3
+web3 = "0.19.0"
