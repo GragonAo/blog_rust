@@ -27,7 +27,7 @@ pub struct UserServiceImpl {
 
 #[async_trait]
 impl UserService for UserServiceImpl {
-    /// 获取用户信息（完整的数据库查询示例）
+    /// 获取用户信息
     async fn get_user_info(&self, user_id: u64) -> Result<Option<User>, AppError> {
         let repo = UserRepositoryImpl::new(self.db_pool.clone());
         let user = repo.find_by_id(user_id as i64).await?;
@@ -39,7 +39,6 @@ impl UserService for UserServiceImpl {
         chain_id: u64,
         web3_address: String,
     ) -> Result<(), AppError> {
-        // 示例：从数据库查询 web3 用户信息
         let user = sqlx::query_as::<_, User>(
             "SELECT u.* FROM users u 
              INNER JOIN user_web3_info w ON u.id = w.user_id 
@@ -58,7 +57,7 @@ impl UserService for UserServiceImpl {
         Ok(())
     }
 
-    /// 创建用户（完整的数据库插入示例）
+    /// 创建用户
     async fn create_user(&self, username: String, email: Option<String>) -> Result<User, AppError> {
         // 生成用户 ID
         let user_id = self.id_generator.lock().unwrap().real_time_generate();
@@ -73,7 +72,6 @@ impl UserService for UserServiceImpl {
             updated_at: Utc::now(),
         };
 
-        // 使用 Repository 保存到数据库
         let repo = UserRepositoryImpl::new(self.db_pool.clone());
         repo.create(&user).await?;
 

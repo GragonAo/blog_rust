@@ -86,15 +86,21 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "chrono",
  "common-core",
+ "common-proto",
  "common-redis",
  "common-web",
  "common-web3",
  "jsonwebtoken",
+ "prost",
  "rs-snowflake",
  "serde",
  "serde_json",
+ "serde_yml",
+ "sqlx",
  "tokio",
+ "tonic",
 ]
 
 [[package]]
@@ -3344,14 +3350,17 @@ dependencies = [
  "axum",
  "chrono",
  "common-core",
+ "common-proto",
  "common-redis",
  "common-web",
+ "prost",
  "rs-snowflake",
  "serde",
  "serde_json",
  "serde_yml",
  "sqlx",
  "tokio",
+ "tonic",
 ]
 
 [[package]]

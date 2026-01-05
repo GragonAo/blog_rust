@@ -3,7 +3,7 @@ use common_web::domain::r::R;
 
 use crate::error::ApiError;
 
-use crate::{AppState, domain::response::user::UserInfoResponse};
+use crate::{domain::response::user::UserInfoResponse, startup::AppState};
 
 pub fn router() -> Router<AppState> {
     Router::new().route("/user", get(get_user_info))

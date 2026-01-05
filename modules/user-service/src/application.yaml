@@ -17,3 +17,4 @@ snowflake:
 
 server:
   bind_addr: 0.0.0.0:5010
+  grpc_addr: 0.0.0.0:50051

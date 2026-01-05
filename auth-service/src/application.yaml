@@ -1,5 +1,20 @@
 redis:
-  host: 192.168.31.218
+  host: 127.0.0.1
   port: 6379
-  password: redis123456
+  password: aoliao123
   pool_size: 5
+
+snowflake:
+  machine_id: 1
+  node_id: 1
+
+jwt:
+  secret: your_secret_key_change_in_production
+  expiration_hours: 24
+  refresh_expiration_hours: 168
+
+server:
+  bind_addr: 0.0.0.0:5020
+
+services:
+  user_service_grpc: http://127.0.0.1:50051

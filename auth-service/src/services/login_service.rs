@@ -19,9 +19,8 @@ pub trait LoginService: Send + Sync {
 }
 
 pub struct LoginServiceImpl {
-    pub redis_client: Arc<RedisClient>,
-    pub db_pool: String,
-    pub id_generator: std::sync::Arc<Mutex<SnowflakeIdGenerator>>,
+    pub redis_client: RedisClient,
+    pub id_generator: Arc<Mutex<SnowflakeIdGenerator>>,
 }
 
 #[async_trait]
