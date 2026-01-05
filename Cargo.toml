@@ -5,7 +5,8 @@ members = [
     "common/common-redis",
     "common/common-web",
     "common/common-web3",
-    "auth-service",
+    "common/common-proto",
+    "auth-service", "modules/user-service", 
 ]
 
 [workspace.dependencies]
@@ -14,6 +15,7 @@ common-core = { path = "common/common-core" }
 common-redis = { path = "common/common-redis" }
 common-web = { path = "common/common-web" }
 common-web3 = { path = "common/common-web3" }
+common-proto = { path = "common/common-proto" }
 
 # --- Web 框架与网络 ---
 axum = "0.8.8"
@@ -23,7 +25,10 @@ tokio = { version = "1.0", features = ["full"] }
 # --- RPC 与协议 (gRPC) ---
 tonic = "0.14.2"
 prost = "0.14.1"
-tonic-build = "0.14.2"
+prost-types = "0.14.1"
+tower = { version = "0.5", features = ["util"] }
+futures-util = "0.3"
+tonic-prost="0.14.2"
 
 # --- 序列化与数据格式 ---
 serde = { version = "1.0", features = ["derive"] }
@@ -40,6 +45,7 @@ sqlx = { version = "0.8", features = [
     "macros",
     "chrono",        # 建议开启 chrono 支持，方便处理数据库时间
 ] }
+
 # Redis (bb8 连结池)
 redis = { version = "1", default-features = false, features = [
     "tokio-comp",

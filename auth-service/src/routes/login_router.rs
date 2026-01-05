@@ -25,7 +25,6 @@ async fn get_login_web3_nonce(
     Path(chain_id): Path<u64>,
     State(state): State<AppState>,
 ) -> Result<Json<R<String>>, ApiError> {
-    // 使用 ApiError
     Chain::try_from(chain_id)
         .map_err(|e| AppError::Internal(format!("Invalid chain id: {}", e)))?;
 
@@ -42,7 +41,6 @@ async fn login_web3_wallet(
     State(state): State<AppState>,
     Json(body): Json<LoginWeb3Request>,
 ) -> Result<Json<R<LoginResponse>>, ApiError> {
-    // 2. 这里必须从 AppError 改为 ApiError
     let recovered_addr = state
         .login_service
         .login_web3_wallet(body.signature, body.message)
@@ -50,7 +48,6 @@ async fn login_web3_wallet(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     if recovered_addr != body.address {
-        // 返回业务错误 R，包装在 Ok 中
         return Ok(Json(R::error(
             "Address mismatch",
             StatusCode::UNAUTHORIZED.as_u16(),
@@ -60,7 +57,6 @@ async fn login_web3_wallet(
     let user_id = 123;
     let jwt_config = &state.app_config.jwt;
 
-    // 因为实现了 From<AppError> for ApiError，这里的 ? 现在可以工作了
     let access_token = JwtUtils::create_token(
         jwt_config.secret.clone(),
         user_id,

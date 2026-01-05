@@ -1,0 +1,19 @@
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: aoliao123
+  pool_size: 5
+
+database:
+  url: postgres://postgres:postgres@127.0.0.1:5432/blog_v2
+  username: gragon
+  password: aoliao123
+  max_connections: 10
+  min_connections: 2
+
+snowflake:
+  machine_id: 1
+  node_id: 1
+
+server:
+  bind_addr: 0.0.0.0:5010

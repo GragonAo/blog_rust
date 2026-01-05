@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 common-core.workspace = true
 
-bb8.workspace = true
 redis.workspace = true
 serde.workspace = true
 bb8-redis.workspace = true
