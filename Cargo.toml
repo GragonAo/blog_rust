@@ -6,7 +6,9 @@ members = [
     "common/common-web",
     "common/common-web3",
     "common/common-proto",
-    "auth-service", "modules/user-service", 
+    "auth-service",
+    "modules/user-service",
+    "gateway-service",
 ]
 
 [workspace.dependencies]
@@ -64,7 +66,12 @@ web3 = "0.19.0"
 
 # --- 日志与可观测性 ---
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2"
+
+# --- 网关特有依赖 ---
+reqwest = { version = "0.12", features = ["json"] }
+governor = "0.7"
 
 # --- 工具类 ---
 async-trait = "0.1"

@@ -1,0 +1,62 @@
+server:
+  bind_addr: "0.0.0.0:8080"
+
+# CORS 跨域配置
+cors:
+  # 允许的源（使用 "*" 允许所有源）
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "https://yourdomain.com"
+  # 允许的 HTTP 方法
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+  # 允许的请求头（使用凭证时不能用 "*"）
+  allowed_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "Accept"
+    - "Origin"
+    - "X-Requested-With"
+  # 暴露的响应头
+  exposed_headers:
+    - "Content-Length"
+    - "Content-Type"
+  # 是否允许凭证（cookies、authorization headers）
+  allow_credentials: true
+  # 预检请求缓存时间（秒）
+  max_age: 3600
+
+jwt:
+  secret: "your-jwt-secret-key-change-in-production"
+  # 白名单路径（不需要 JWT 验证，支持前缀匹配）
+  whitelist_paths:
+    - "/api/auth/web3-login"  # 匹配 /api/auth/web3-login 及其子路径
+    - "/health"
+
+# 限流配置（每个 IP）
+rate_limit:
+  requests_per_second: 100
+  burst_size: 50
+
+# 熔断器配置
+circuit_breaker:
+  failure_threshold: 5       # 失败次数阈值
+  timeout_seconds: 60        # 熔断器打开时长
+
+# 后端服务配置
+services:
+  auth:
+    url: "http://localhost:5020"
+    path_prefix: "/api/auth"
+    timeout_seconds: 10
+  
+  user:
+    url: "http://localhost:5010"
+    path_prefix: "/api/user"
+    timeout_seconds: 10
