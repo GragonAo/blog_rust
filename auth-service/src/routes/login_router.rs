@@ -5,7 +5,6 @@ use axum::{
     routing::{get, post},
 };
 use common_core::{AppError, utils::jwt_utils::JwtUtils};
-use common_proto::user::Web3InfoReq;
 use common_web::domain::r::R;
 use common_web3::chain::Chain;
 
@@ -55,29 +54,23 @@ async fn login_web3_wallet(
         )));
     }
 
-    let web3_info_req = tonic::Request::new(Web3InfoReq {
-        chain_id,
-        address: body.address,
-    });
-    let user_info_res = state
-        .user_grpc_client
-        .clone()
-        .get_user_info_by_web3(web3_info_req)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .into_inner();
+    // 获取或注册用户（由 service 层统一处理）
+    let user_id = state
+        .login_service
+        .register_or_get_web3_user(&state.user_grpc_client, chain_id, body.address)
+        .await?;
 
     let jwt_config = &state.app_config.jwt;
 
     let access_token = JwtUtils::create_token(
         jwt_config.secret.clone(),
-        user_info_res.id,
+        user_id,
         jwt_config.expiration_hours,
     )?;
 
     let refresh_token = JwtUtils::create_token(
         jwt_config.secret.clone(),
-        user_info_res.id,
+        user_id,
         jwt_config.refresh_expiration_hours,
     )?;
 
