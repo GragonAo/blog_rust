@@ -4,20 +4,48 @@ package user;
 
 // 用户服务定义
 service UserService {
-  // 获取用户信息
-  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse);
+  rpc GetUserInfo (GetUserInfoReq) returns (GetUserInfoRes);
+  rpc RegisterUser(RegisterUserReq) returns (RegisterUserRes);
 }
 
-// 获取用户信息请求
-message GetUserInfoRequest {
+// 注册类型枚举
+enum RegisterType {
+  REGISTER_TYPE_UNSPECIFIED = 0; // Proto3 规范：第一个元素必须是 0，作为默认值
+  REGISTER_TYPE_USERNAME    = 1; // 传统用户名密码注册
+  REGISTER_TYPE_WEB3        = 2; // Web3 钱包注册
+  REGISTER_TYPE_EMAIL       = 3; // 邮箱注册
+}
+
+message Web3Info {
+  int64 chain_id = 1;
+  string address = 2;
+}
+
+message GetUserInfoReq {
   int64 user_id = 1;
 }
 
-// 获取用户信息响应
-message GetUserInfoResponse {
+message GetUserInfoRes {
   int64 id = 1;
   string username = 2;
   optional string email = 3;
-  string created_at = 4;
+  string created_at = 4; 
   string updated_at = 5;
+  optional Web3Info web3_info = 6;
+}
+
+message RegisterUserReq {
+  RegisterType register_type = 1;
+  // 传统用户名密码注册
+  optional string username = 2;
+  optional string password = 6; 
+  // Web3 钱包注册
+  optional string web3_address = 3; 
+  optional int64 web3_chain_id = 4;
+  // 邮箱注册
+  optional string email = 5;
+}
+
+message RegisterUserRes {
+  int64 user_id = 3;
 }

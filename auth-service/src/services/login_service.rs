@@ -10,7 +10,7 @@ const NONCE_EXPIRATION_SECONDS: u64 = 300;
 
 #[async_trait]
 pub trait LoginService: Send + Sync {
-    async fn get_login_web3_nonce(&self, chain_id: u64) -> Result<String, AppError>;
+    async fn get_login_web3_nonce(&self, chain_id: i64) -> Result<String, AppError>;
     async fn login_web3_wallet(
         &self,
         signature: String,
@@ -25,7 +25,7 @@ pub struct LoginServiceImpl {
 
 #[async_trait]
 impl LoginService for LoginServiceImpl {
-    async fn get_login_web3_nonce(&self, chain_id: u64) -> Result<String, AppError> {
+    async fn get_login_web3_nonce(&self, chain_id: i64) -> Result<String, AppError> {
         let nonce_id = {
             let mut id_gen = self
                 .id_generator
@@ -61,7 +61,7 @@ impl LoginService for LoginServiceImpl {
         self.redis_client.del(&redis_key).await?;
 
         let chain_id = chain_id_str
-            .parse::<u64>()
+            .parse::<i64>()
             .map_err(|_| AppError::Internal("Invalid chain ID stored in nonce".into()))?;
         let chain = Chain::try_from(chain_id)?;
         // 调用底层Web3工具：换出地址

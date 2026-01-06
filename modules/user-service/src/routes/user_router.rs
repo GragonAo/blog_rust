@@ -12,15 +12,9 @@ pub fn router() -> Router<AppState> {
 async fn get_user_info(
     State(app_state): State<AppState>,
 ) -> Result<Json<R<UserInfoResponse>>, ApiError> {
-    let user = app_state.user_service.get_user_info(1).await?;
-
-    if let Some(user) = user {
-        let response = UserInfoResponse {
-            user_id: user.id,
-            username: user.username,
-            web3_user_info: None,
-        };
-        Ok(Json(R::ok(response)))
+    let user_info_opt = app_state.user_service.get_user_info(1).await?;
+    if let Some(ui) = user_info_opt {
+        Ok(Json(R::ok(UserInfoResponse::from(ui))))
     } else {
         Err(ApiError(common_core::AppError::internal("User not found")))
     }

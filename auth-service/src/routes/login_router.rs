@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
 };
 use common_core::{AppError, utils::jwt_utils::JwtUtils};
+use common_proto::user::GetUserInfoReq;
 use common_web::domain::r::R;
 use common_web3::chain::Chain;
 
@@ -22,7 +23,7 @@ pub fn router() -> Router<AppState> {
 }
 
 async fn get_login_web3_nonce(
-    Path(chain_id): Path<u64>,
+    Path(chain_id): Path<i64>,
     State(state): State<AppState>,
 ) -> Result<Json<R<String>>, ApiError> {
     Chain::try_from(chain_id)
@@ -55,6 +56,13 @@ async fn login_web3_wallet(
     }
 
     let user_id = 123;
+    let user_info_req = tonic::Request::new(GetUserInfoReq { user_id });
+    let user_info = state
+        .user_grpc_client
+        .get_user_info(user_info_req)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     let jwt_config = &state.app_config.jwt;
 
     let access_token = JwtUtils::create_token(

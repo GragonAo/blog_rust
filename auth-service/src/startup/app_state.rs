@@ -1,6 +1,8 @@
+use common_proto::user::user_service_client::UserServiceClient;
 use common_redis::RedisClient;
 use snowflake::SnowflakeIdGenerator;
 use std::sync::{Arc, Mutex};
+use tonic::transport::Channel;
 
 use crate::{config::application::AppConfig, services::login_service::LoginService};
 
@@ -18,7 +20,7 @@ pub struct AppState {
     pub id_generator: Arc<Mutex<SnowflakeIdGenerator>>,
 
     // gRPC 客户端
-    pub user_grpc_client: crate::grpc::user_client::UserServiceGrpcClient,
+    pub user_grpc_client: Arc<UserServiceClient<Channel>>,
 
     // 配置
     pub app_config: Arc<AppConfig>,

@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     config::application::AppConfig,
+    grpc::user_client::UserServiceGrpcClient,
     services::login_service::{LoginService, LoginServiceImpl},
 };
 
@@ -20,11 +21,9 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
     // 1. 初始化 Redis 客户端
     let redis_client = RedisClient::new(app_config.redis.clone()).await?;
 
-    // 2. 初始化 gRPC 客户端
-    let user_grpc_client = crate::grpc::user_client::UserServiceGrpcClient::new(
-        app_config.services.user_service_grpc.clone(),
-    )
-    .await?;
+    // 2. 初始化 UserService gRPC 客户端
+    let user_grpc_client =
+        Arc::new(UserServiceGrpcClient::new(app_config.services.user_service_grpc.clone()).await?);
 
     // 3. 初始化 ID 生成器
     let id_generator = Arc::new(Mutex::new(SnowflakeIdGenerator::new(

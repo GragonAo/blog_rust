@@ -22,10 +22,10 @@ impl Chain {
 }
 
 /// 实现从数字 ID 到枚举的转换
-impl TryFrom<u64> for Chain {
+impl TryFrom<i64> for Chain {
     type Error = AppError;
 
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(Chain::Evm),
             56 => Ok(Chain::Bsc),
