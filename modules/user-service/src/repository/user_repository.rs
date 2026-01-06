@@ -1,7 +1,7 @@
 use crate::domain::model::user::User;
 use async_trait::async_trait;
 use common_core::AppError;
-use sqlx::{PgConnection, PgPool};
+use sqlx::PgConnection;
 
 /// 用户数据访问层 trait
 #[async_trait]
@@ -22,18 +22,13 @@ pub trait UserRepository: Send + Sync {
         email: &str,
     ) -> Result<Option<User>, AppError>;
     async fn inster(&self, executor: &mut PgConnection, user: &User) -> Result<(), AppError>;
-    async fn update(&self, executor: &mut PgConnection, user: &User) -> Result<(), AppError>;
-    async fn delete(&self, executor: &mut PgConnection, id: i64) -> Result<(), AppError>;
 }
 
-pub struct UserRepositoryImpl {
-    // 虽然保留了 pool，但在事务模式下，方法内部应优先使用传入的 executor
-    pub db_pool: PgPool,
-}
+pub struct UserRepositoryImpl;
 
 impl UserRepositoryImpl {
-    pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool }
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -46,7 +41,7 @@ impl UserRepository for UserRepositoryImpl {
     ) -> Result<Option<User>, AppError> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
-            .fetch_optional(executor) // 关键：使用传入的 executor
+            .fetch_optional(executor)
             .await
             .map_err(|e| AppError::Db(format!("Failed to fetch user by id: {}", e)))
     }
@@ -89,30 +84,6 @@ impl UserRepository for UserRepositoryImpl {
         .execute(executor)
         .await
         .map_err(|e| AppError::Db(format!("Failed to create user: {}", e)))?;
-        Ok(())
-    }
-
-    async fn update(&self, executor: &mut PgConnection, user: &User) -> Result<(), AppError> {
-        sqlx::query(
-            "UPDATE users SET username = $1, email = $2, password_hash = $3, updated_at = NOW() 
-             WHERE id = $4",
-        )
-        .bind(&user.username)
-        .bind(&user.email)
-        .bind(&user.password_hash)
-        .bind(user.id)
-        .execute(executor)
-        .await
-        .map_err(|e| AppError::Db(format!("Failed to update user: {}", e)))?;
-        Ok(())
-    }
-
-    async fn delete(&self, executor: &mut PgConnection, id: i64) -> Result<(), AppError> {
-        sqlx::query("DELETE FROM users WHERE id = $1")
-            .bind(id)
-            .execute(executor)
-            .await
-            .map_err(|e| AppError::Db(format!("Failed to delete user: {}", e)))?;
         Ok(())
     }
 }

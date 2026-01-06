@@ -4,7 +4,8 @@ package user;
 
 // 用户服务定义
 service UserService {
-  rpc GetUserInfo (GetUserInfoReq) returns (GetUserInfoRes);
+  rpc GetUserInfo (UserInfoReq) returns (UserInfoRes);
+  rpc GetUserInfoByWeb3(Web3InfoReq) returns (UserInfoRes);
   rpc RegisterUser(RegisterUserReq) returns (RegisterUserRes);
 }
 
@@ -21,11 +22,16 @@ message Web3Info {
   string address = 2;
 }
 
-message GetUserInfoReq {
+message UserInfoReq {
   int64 user_id = 1;
 }
 
-message GetUserInfoRes {
+message Web3InfoReq {
+  int64 chain_id = 1;
+  string address = 2;
+}
+
+message UserInfoRes {
   int64 id = 1;
   string username = 2;
   optional string email = 3;

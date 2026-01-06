@@ -13,11 +13,13 @@ use std::sync::{Arc, Mutex};
 #[async_trait]
 pub trait UserService: Send + Sync {
     async fn get_user_info(&self, user_id: i64) -> Result<Option<UserInfo>, AppError>;
+
     async fn get_user_info_by_web3(
         &self,
         chain_id: i64,
-        web3_address: String,
-    ) -> Result<(), AppError>;
+        address: String,
+    ) -> Result<Option<UserInfo>, AppError>;
+
     async fn create_user(&self, user_info_bo: UserInfoBo) -> Result<i64, AppError>;
 }
 
@@ -32,33 +34,53 @@ pub struct UserServiceImpl {
 impl UserService for UserServiceImpl {
     /// 获取用户信息
     async fn get_user_info(&self, user_id: i64) -> Result<Option<UserInfo>, AppError> {
-        // 1. 获取一个独占连接
         let mut conn = self
             .db_pool
             .acquire()
             .await
             .map_err(|e| AppError::Db(e.to_string()))?;
 
-        // 2. 初始化 Repos
-        let user_repo = UserRepositoryImpl::new(self.db_pool.clone());
-        let web3_repo = Web3UserRepositoryImpl::new(self.db_pool.clone());
+        let user_repo = UserRepositoryImpl::new();
+        let web3_repo = Web3UserRepositoryImpl::new();
 
-        let user_opt = user_repo.find_by_id(&mut *conn, user_id).await?;
+        let user_opt = user_repo.find_by_id(&mut conn, user_id).await?;
 
         if let Some(user) = user_opt {
-            let web3_info = web3_repo.find_by_user_id(&mut *conn, user_id).await?;
+            let web3_info = web3_repo.find_by_user_id(&mut conn, user_id).await?;
             Ok(Some(UserInfo { user, web3_info }))
         } else {
             Ok(None)
         }
     }
 
+    /// 根据 Web3 地址和链 ID 获取用户信息
     async fn get_user_info_by_web3(
         &self,
-        _chain_id: i64,
-        _web3_address: String,
-    ) -> Result<(), AppError> {
-        Ok(())
+        chain_id: i64,
+        address: String,
+    ) -> Result<Option<UserInfo>, AppError> {
+        let mut conn = self
+            .db_pool
+            .acquire()
+            .await
+            .map_err(|e| AppError::Db(e.to_string()))?;
+
+        let web3_repo = Web3UserRepositoryImpl::new();
+        let user_repo = UserRepositoryImpl::new();
+
+        let web3_info_opt = web3_repo
+            .find_by_address(&mut conn, chain_id, &address)
+            .await?;
+
+        if let Some(web3_info) = web3_info_opt {
+            let user_opt = user_repo.find_by_id(&mut conn, web3_info.user_id).await?;
+            Ok(Some(UserInfo {
+                user: user_opt.unwrap(),
+                web3_info: web3_info.into(),
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     /// 创建用户
@@ -75,7 +97,7 @@ impl UserService for UserServiceImpl {
             },
             web3_info: user_info_bo.web3_info.map(|w| Web3UserInfo {
                 id: self.id_generator.lock().unwrap().real_time_generate(),
-                user_id: user_id,
+                user_id,
                 chain_id: w.chain_id,
                 address: w.address,
                 created_at: Utc::now(),
@@ -90,19 +112,18 @@ impl UserService for UserServiceImpl {
             .await
             .map_err(|e| AppError::Db(format!("Begin transaction failed: {}", e)))?;
 
-        let repo = UserRepositoryImpl::new(self.db_pool.clone());
+        let user_repo = UserRepositoryImpl::new();
+        let web3_repo = Web3UserRepositoryImpl::new();
 
         // 4. 插入用户表
-        repo.inster(&mut *tx, &user_info.user).await?;
+        user_repo.inster(&mut tx, &user_info.user).await?;
 
         // 5. 处理 Web3 信息
         if let Some(mut web3) = user_info.web3_info {
             web3.user_id = user_id;
             web3.created_at = Utc::now();
             web3.updated_at = Utc::now();
-
-            let web3_repo = Web3UserRepositoryImpl::new(self.db_pool.clone());
-            web3_repo.insert(&mut *tx, &web3).await?;
+            web3_repo.insert(&mut tx, &web3).await?;
         }
         // 6. 提交事务
         tx.commit()

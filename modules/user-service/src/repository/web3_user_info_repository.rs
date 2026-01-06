@@ -1,7 +1,7 @@
 use crate::domain::model::user::Web3UserInfo;
 use async_trait::async_trait;
 use common_core::AppError;
-use sqlx::{PgConnection, PgPool};
+use sqlx::PgConnection;
 
 #[async_trait]
 pub trait Web3UserRepository: Send + Sync {
@@ -28,13 +28,11 @@ pub trait Web3UserRepository: Send + Sync {
     ) -> Result<Option<Web3UserInfo>, AppError>;
 }
 
-pub struct Web3UserRepositoryImpl {
-    pub db_pool: PgPool,
-}
+pub struct Web3UserRepositoryImpl;
 
 impl Web3UserRepositoryImpl {
-    pub fn new(db_pool: PgPool) -> Self {
-        Self { db_pool }
+    pub fn new() -> Self {
+        Self
     }
 }
 

@@ -19,8 +19,8 @@ pub struct AppState {
     pub redis_client: RedisClient,
     pub id_generator: Arc<Mutex<SnowflakeIdGenerator>>,
 
-    // gRPC 客户端
-    pub user_grpc_client: Arc<UserServiceClient<Channel>>,
+    // gRPC 客户端 (tonic 客户端本身可克隆，无需 Arc)
+    pub user_grpc_client: UserServiceClient<Channel>,
 
     // 配置
     pub app_config: Arc<AppConfig>,

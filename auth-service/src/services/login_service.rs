@@ -15,7 +15,7 @@ pub trait LoginService: Send + Sync {
         &self,
         signature: String,
         message: String,
-    ) -> Result<String, AppError>;
+    ) -> Result<(i64, String), AppError>;
 }
 
 pub struct LoginServiceImpl {
@@ -47,7 +47,7 @@ impl LoginService for LoginServiceImpl {
         &self,
         signature: String,
         message: String,
-    ) -> Result<String, AppError> {
+    ) -> Result<(i64, String), AppError> {
         let nonce = message
             .split(": ")
             .nth(1)
@@ -66,6 +66,6 @@ impl LoginService for LoginServiceImpl {
         let chain = Chain::try_from(chain_id)?;
         // 调用底层Web3工具：换出地址
         let recovered_addr = Web3Recover::get_address(chain, &message, &signature)?;
-        Ok(recovered_addr)
+        Ok((chain_id, recovered_addr))
     }
 }

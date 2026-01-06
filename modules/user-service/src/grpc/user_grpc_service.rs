@@ -1,5 +1,5 @@
 use common_proto::user::{
-    GetUserInfoReq, GetUserInfoRes, RegisterType, RegisterUserReq, RegisterUserRes,
+    RegisterType, RegisterUserReq, RegisterUserRes, UserInfoReq, UserInfoRes, Web3InfoReq,
     user_service_server::{UserService as UserServiceTrait, UserServiceServer},
 };
 use tonic::{Request, Response, Status};
@@ -28,8 +28,8 @@ impl UserGrpcService {
 impl UserServiceTrait for UserGrpcService {
     async fn get_user_info(
         &self,
-        request: Request<GetUserInfoReq>,
-    ) -> Result<Response<GetUserInfoRes>, Status> {
+        request: Request<UserInfoReq>,
+    ) -> Result<Response<UserInfoRes>, Status> {
         let req = request.into_inner();
 
         let user_info = self
@@ -41,7 +41,39 @@ impl UserServiceTrait for UserGrpcService {
 
         match user_info {
             Some(user_info) => {
-                let response = GetUserInfoRes {
+                let response = UserInfoRes {
+                    id: user_info.user.id,
+                    username: user_info.user.username,
+                    email: user_info.user.email,
+                    created_at: user_info.user.created_at.to_rfc3339(),
+                    updated_at: user_info.user.updated_at.to_rfc3339(),
+                    web3_info: user_info.web3_info.map(|w| common_proto::user::Web3Info {
+                        chain_id: w.chain_id,
+                        address: w.address,
+                    }),
+                };
+                Ok(Response::new(response))
+            }
+            None => Err(Status::not_found("User not found")),
+        }
+    }
+
+    async fn get_user_info_by_web3(
+        &self,
+        request: Request<Web3InfoReq>,
+    ) -> Result<Response<UserInfoRes>, Status> {
+        let req = request.into_inner();
+
+        let user_info = self
+            .app_state
+            .user_service
+            .get_user_info_by_web3(req.chain_id, req.address)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get user info by web3: {}", e)))?;
+
+        match user_info {
+            Some(user_info) => {
+                let response = UserInfoRes {
                     id: user_info.user.id,
                     username: user_info.user.username,
                     email: user_info.user.email,
@@ -100,7 +132,7 @@ impl UserServiceTrait for UserGrpcService {
                 let email = email_opt
                     .clone()
                     .ok_or_else(|| Status::invalid_argument("email is required"))?;
-                let username = username_opt.unwrap_or_else(|| email);
+                let username = username_opt.unwrap_or(email);
                 (username, None)
             }
 

@@ -1,7 +1,7 @@
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use common_core::AppError;
 
-use crate::routes::{login_router, test_router};
+use crate::routes::login_router;
 
 use super::AppState;
 
@@ -10,7 +10,6 @@ pub async fn start_http_server(app_state: AppState, bind_addr: String) -> Result
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))
         .merge(login_router::router())
-        .merge(test_router::router())
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;

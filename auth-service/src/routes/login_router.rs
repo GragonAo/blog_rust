@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
 };
 use common_core::{AppError, utils::jwt_utils::JwtUtils};
-use common_proto::user::GetUserInfoReq;
+use common_proto::user::Web3InfoReq;
 use common_web::domain::r::R;
 use common_web3::chain::Chain;
 
@@ -42,7 +42,7 @@ async fn login_web3_wallet(
     State(state): State<AppState>,
     Json(body): Json<LoginWeb3Request>,
 ) -> Result<Json<R<LoginResponse>>, ApiError> {
-    let recovered_addr = state
+    let (chain_id, recovered_addr) = state
         .login_service
         .login_web3_wallet(body.signature, body.message)
         .await
@@ -55,25 +55,29 @@ async fn login_web3_wallet(
         )));
     }
 
-    let user_id = 123;
-    let user_info_req = tonic::Request::new(GetUserInfoReq { user_id });
-    let user_info = state
+    let web3_info_req = tonic::Request::new(Web3InfoReq {
+        chain_id,
+        address: body.address,
+    });
+    let user_info_res = state
         .user_grpc_client
-        .get_user_info(user_info_req)
+        .clone()
+        .get_user_info_by_web3(web3_info_req)
         .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .into_inner();
 
     let jwt_config = &state.app_config.jwt;
 
     let access_token = JwtUtils::create_token(
         jwt_config.secret.clone(),
-        user_id,
+        user_info_res.id,
         jwt_config.expiration_hours,
     )?;
 
     let refresh_token = JwtUtils::create_token(
         jwt_config.secret.clone(),
-        user_id,
+        user_info_res.id,
         jwt_config.refresh_expiration_hours,
     )?;
 
