@@ -43,7 +43,7 @@ impl Web3UserRepository for Web3UserRepositoryImpl {
         executor: &mut PgConnection,
         user_id: i64,
     ) -> Result<Option<Web3UserInfo>, AppError> {
-        sqlx::query_as::<_, Web3UserInfo>("SELECT * FROM user_web3_info WHERE user_id = $1")
+        sqlx::query_as::<_, Web3UserInfo>("SELECT * FROM web3_user_info WHERE user_id = $1")
             .bind(user_id)
             .fetch_optional(executor)
             .await
@@ -56,13 +56,10 @@ impl Web3UserRepository for Web3UserRepositoryImpl {
         info: &Web3UserInfo,
     ) -> Result<(), AppError> {
         sqlx::query(
-            "INSERT INTO user_web3_info (user_id, chain_id, address, created_at, updated_at) 
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (user_id) DO UPDATE SET 
-                chain_id = EXCLUDED.chain_id,
-                address = EXCLUDED.address,
-                updated_at = EXCLUDED.updated_at",
+            "INSERT INTO web3_user_info (id, user_id, chain_id, address, created_at, updated_at) 
+             VALUES ($1, $2, $3, $4, $5, $6)",
         )
+        .bind(info.id)
         .bind(info.user_id)
         .bind(info.chain_id)
         .bind(&info.address)
@@ -81,7 +78,7 @@ impl Web3UserRepository for Web3UserRepositoryImpl {
         address: &str,
     ) -> Result<Option<Web3UserInfo>, AppError> {
         sqlx::query_as::<_, Web3UserInfo>(
-            "SELECT * FROM user_web3_info WHERE chain_id = $1 AND address = $2",
+            "SELECT * FROM web3_user_info WHERE chain_id = $1 AND address = $2",
         )
         .bind(chain_id)
         .bind(address)

@@ -1,8 +1,8 @@
 use axum::{
+    Router,
     http::{HeaderName, HeaderValue, Method},
     middleware,
     routing::{any, get},
-    Router,
 };
 use common_core::AppError;
 use tower_http::cors::{Any, CorsLayer};
@@ -30,9 +30,22 @@ pub async fn start_http_server(app_state: AppState, bind_addr: String) -> Result
     let cors_config = &app_state.app_config.cors;
     let mut cors_layer = CorsLayer::new();
 
+    // 验证：当 allow_credentials=true 时，不能使用通配符 "*"
+    let has_wildcard = cors_config.allowed_origins.iter().any(|o| o == "*");
+    if has_wildcard && cors_config.allow_credentials {
+        tracing::warn!(
+            "⚠️  CORS 配置警告: allow_credentials=true 时不能使用 allowed_origins=\"*\"\n\
+             浏览器会拒绝此配置。请设置 allow_credentials=false 或指定具体的域名列表。"
+        );
+        return Err(AppError::internal(
+            "Invalid CORS config: cannot use wildcard origin with credentials",
+        ));
+    }
+
     // 配置允许的源
-    if cors_config.allowed_origins.contains(&"*".to_string()) {
+    if has_wildcard {
         cors_layer = cors_layer.allow_origin(Any);
+        tracing::info!("CORS: 允许所有源 (*)");
     } else {
         let origins: Result<Vec<HeaderValue>, _> = cors_config
             .allowed_origins
@@ -42,6 +55,7 @@ pub async fn start_http_server(app_state: AppState, bind_addr: String) -> Result
         cors_layer = cors_layer.allow_origin(
             origins.map_err(|e| AppError::internal(format!("Invalid CORS origin: {}", e)))?,
         );
+        tracing::info!("CORS: 允许的源 = {:?}", cors_config.allowed_origins);
     }
 
     // 配置允许的方法
@@ -81,16 +95,16 @@ pub async fn start_http_server(app_state: AppState, bind_addr: String) -> Result
     // 配置凭证
     if cors_config.allow_credentials {
         cors_layer = cors_layer.allow_credentials(true);
+        tracing::info!("CORS: 允许凭证 (cookies/auth headers)");
     }
 
     // 配置预检请求缓存时间
     cors_layer = cors_layer.max_age(std::time::Duration::from_secs(cors_config.max_age));
 
     tracing::info!(
-        "CORS configured: origins={:?}, methods={:?}, credentials={}",
-        cors_config.allowed_origins,
+        "✅ CORS 配置完成: methods={:?}, max_age={}s",
         cors_config.allowed_methods,
-        cors_config.allow_credentials
+        cors_config.max_age
     );
 
     // 构建路由（统一应用中间件，通过白名单控制鉴权）

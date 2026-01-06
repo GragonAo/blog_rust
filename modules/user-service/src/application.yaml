@@ -1,13 +1,13 @@
 redis:
   host: 127.0.0.1
   port: 6379
-  password: aoliao123!!
+  password: aoliao123
   pool_size: 20
 
 database:
   url: postgres://postgres:postgres@127.0.0.1:5432/blog_v2
   username: gragon
-  password: aoliao123!!
+  password: aoliao123
   max_connections: 50
   min_connections: 10
 

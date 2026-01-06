@@ -4,11 +4,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use governor::{
-    Quota, RateLimiter,
-    clock::DefaultClock,
-    state::{InMemoryState, keyed::DefaultKeyedStateStore},
-};
+use governor::{Quota, RateLimiter, clock::DefaultClock, state::keyed::DefaultKeyedStateStore};
 use std::{
     net::{IpAddr, SocketAddr},
     num::NonZeroU32,

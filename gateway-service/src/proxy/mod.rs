@@ -1,21 +1,32 @@
 use axum::{
     body::Body,
-    extract::State,
-    http::{HeaderMap, StatusCode, Uri},
+    extract::{Request, State},
+    http::{HeaderMap, Method, StatusCode},
     response::{IntoResponse, Response},
 };
 use reqwest::Client;
 use std::time::Duration;
 
-use crate::{config::application::ServiceConfig, AppState};
+use crate::{AppState, config::application::ServiceConfig};
 
 /// 代理转发请求到后端服务
 pub async fn proxy_request(
     State(state): State<AppState>,
-    uri: Uri,
-    headers: HeaderMap,
-    _body: String,
+    request: Request,
 ) -> Result<Response, Response> {
+    let method = request.method().clone();
+    let uri = request.uri().clone();
+    let headers = request.headers().clone();
+    let body = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("Failed to read body: {}", e),
+            )
+                .into_response()
+        })?;
+
     // 根据路径前缀确定目标服务
     let path = uri.path();
     let service = state
@@ -40,15 +51,17 @@ pub async fn proxy_request(
     let headers_clone = headers.clone();
     let target_url_clone = target_url.clone();
     let service_clone = service.clone();
+    let body_clone = body.clone();
 
     let result = state
         .circuit_breaker
         .call(&service.path_prefix, || async move {
             forward_request(
                 &http_client,
+                &method,
                 &target_url_clone,
                 &headers_clone,
-                "",
+                &body_clone,
                 &service_clone,
             )
             .await
@@ -71,20 +84,36 @@ pub async fn proxy_request(
 /// 转发请求到后端服务
 async fn forward_request(
     client: &Client,
+    method: &Method,
     target_url: &str,
     headers: &HeaderMap,
-    _body: &str,
+    body: &[u8],
     service: &ServiceConfig,
 ) -> Result<Response, reqwest::Error> {
-    let mut request_builder = client
-        .get(target_url)
-        .timeout(Duration::from_secs(service.timeout_seconds));
+    // 根据 HTTP 方法构建请求
+    let mut request_builder = match *method {
+        Method::GET => client.get(target_url),
+        Method::POST => client.post(target_url),
+        Method::PUT => client.put(target_url),
+        Method::DELETE => client.delete(target_url),
+        Method::PATCH => client.patch(target_url),
+        Method::HEAD => client.head(target_url),
+        Method::OPTIONS => client.request(Method::OPTIONS, target_url),
+        _ => client.request(method.clone(), target_url),
+    };
+
+    request_builder = request_builder.timeout(Duration::from_secs(service.timeout_seconds));
 
     // 转发必要的请求头
     for (key, value) in headers.iter() {
         if should_forward_header(key.as_str()) {
             request_builder = request_builder.header(key, value);
         }
+    }
+
+    // 添加请求体（如果有）
+    if !body.is_empty() {
+        request_builder = request_builder.body(body.to_vec());
     }
 
     let backend_response = request_builder.send().await?;
