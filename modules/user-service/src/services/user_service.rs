@@ -8,7 +8,12 @@ use common_core::AppError;
 use common_redis::RedisClient;
 use snowflake::SnowflakeIdGenerator;
 use sqlx::PgPool;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+// 复用 Repository 实例，避免重复创建
+static USER_REPO: UserRepositoryImpl = UserRepositoryImpl;
+static WEB3_REPO: Web3UserRepositoryImpl = Web3UserRepositoryImpl;
 
 #[async_trait]
 pub trait UserService: Send + Sync {
@@ -27,7 +32,7 @@ pub struct UserServiceImpl {
     #[allow(dead_code)]
     pub redis_client: RedisClient,
     pub db_pool: PgPool,
-    pub id_generator: Arc<Mutex<SnowflakeIdGenerator>>,
+    pub id_generator: Arc<RwLock<SnowflakeIdGenerator>>,
 }
 
 #[async_trait]
@@ -40,13 +45,10 @@ impl UserService for UserServiceImpl {
             .await
             .map_err(|e| AppError::Db(e.to_string()))?;
 
-        let user_repo = UserRepositoryImpl::new();
-        let web3_repo = Web3UserRepositoryImpl::new();
-
-        let user_opt = user_repo.find_by_id(&mut conn, user_id).await?;
+        let user_opt = USER_REPO.find_by_id(&mut conn, user_id).await?;
 
         if let Some(user) = user_opt {
-            let web3_info = web3_repo.find_by_user_id(&mut conn, user_id).await?;
+            let web3_info = WEB3_REPO.find_by_user_id(&mut conn, user_id).await?;
             Ok(Some(UserInfo { user, web3_info }))
         } else {
             Ok(None)
@@ -65,19 +67,25 @@ impl UserService for UserServiceImpl {
             .await
             .map_err(|e| AppError::Db(e.to_string()))?;
 
-        let web3_repo = Web3UserRepositoryImpl::new();
-        let user_repo = UserRepositoryImpl::new();
-
-        let web3_info_opt = web3_repo
+        let web3_info_opt = WEB3_REPO
             .find_by_address(&mut conn, chain_id, &address)
             .await?;
 
         if let Some(web3_info) = web3_info_opt {
-            let user_opt = user_repo.find_by_id(&mut conn, web3_info.user_id).await?;
-            Ok(Some(UserInfo {
-                user: user_opt.unwrap(),
-                web3_info: web3_info.into(),
-            }))
+            let user_opt = USER_REPO.find_by_id(&mut conn, web3_info.user_id).await?;
+            match user_opt {
+                Some(user) => Ok(Some(UserInfo {
+                    user,
+                    web3_info: Some(web3_info),
+                })),
+                None => {
+                    tracing::warn!(
+                        "Web3 info found but user not found: user_id={}",
+                        web3_info.user_id
+                    );
+                    Ok(None)
+                }
+            }
         } else {
             Ok(None)
         }
@@ -85,7 +93,7 @@ impl UserService for UserServiceImpl {
 
     /// 创建用户
     async fn create_user(&self, user_info_bo: UserInfoBo) -> Result<i64, AppError> {
-        let user_id = self.id_generator.lock().unwrap().real_time_generate();
+        let user_id = self.id_generator.write().await.real_time_generate();
         let user_info = UserInfo {
             user: User {
                 id: user_id,
@@ -95,14 +103,20 @@ impl UserService for UserServiceImpl {
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
             },
-            web3_info: user_info_bo.web3_info.map(|w| Web3UserInfo {
-                id: self.id_generator.lock().unwrap().real_time_generate(),
-                user_id,
-                chain_id: w.chain_id,
-                address: w.address,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
-            }),
+            web3_info: match user_info_bo.web3_info {
+                Some(w) => {
+                    let web3_id = self.id_generator.write().await.real_time_generate();
+                    Some(Web3UserInfo {
+                        id: web3_id,
+                        user_id,
+                        chain_id: w.chain_id,
+                        address: w.address,
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                    })
+                }
+                None => None,
+            },
         };
 
         // 3. 开启事务
@@ -112,19 +126,17 @@ impl UserService for UserServiceImpl {
             .await
             .map_err(|e| AppError::Db(format!("Begin transaction failed: {}", e)))?;
 
-        let user_repo = UserRepositoryImpl::new();
-        let web3_repo = Web3UserRepositoryImpl::new();
-
         // 4. 插入用户表
-        user_repo.inster(&mut tx, &user_info.user).await?;
+        USER_REPO.inster(&mut tx, &user_info.user).await?;
 
         // 5. 处理 Web3 信息
         if let Some(mut web3) = user_info.web3_info {
             web3.user_id = user_id;
             web3.created_at = Utc::now();
             web3.updated_at = Utc::now();
-            web3_repo.insert(&mut tx, &web3).await?;
+            WEB3_REPO.insert(&mut tx, &web3).await?;
         }
+
         // 6. 提交事务
         tx.commit()
             .await

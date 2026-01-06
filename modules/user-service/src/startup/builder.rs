@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
 use common_core::AppError;
+use common_redis::RedisClient;
 use snowflake::SnowflakeIdGenerator;
 use sqlx::postgres::PgPoolOptions;
-use common_redis::RedisClient;
+use std::sync::Arc;
 
 use crate::{
     config::application::AppConfig,
@@ -31,7 +31,7 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
         .map_err(|e| AppError::Db(format!("Failed to connect to database: {}", e)))?;
 
     // 3. 初始化 ID 生成器
-    let id_generator = Arc::new(Mutex::new(SnowflakeIdGenerator::new(
+    let id_generator = Arc::new(tokio::sync::RwLock::new(SnowflakeIdGenerator::new(
         app_config.snowflake.machine_id,
         app_config.snowflake.node_id,
     )));

@@ -1,7 +1,7 @@
 use common_core::AppError;
 use common_redis::RedisClient;
 use snowflake::SnowflakeIdGenerator;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::{
     config::application::AppConfig,
@@ -26,7 +26,7 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
         UserServiceGrpcClient::new(app_config.services.user_service_grpc.clone()).await?;
 
     // 3. 初始化 ID 生成器
-    let id_generator = Arc::new(Mutex::new(SnowflakeIdGenerator::new(
+    let id_generator = Arc::new(tokio::sync::RwLock::new(SnowflakeIdGenerator::new(
         app_config.snowflake.machine_id,
         app_config.snowflake.node_id,
     )));

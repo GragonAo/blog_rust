@@ -3,7 +3,8 @@ use common_core::AppError;
 use common_redis::RedisClient;
 use common_web3::{Web3Recover, chain::Chain};
 use snowflake::SnowflakeIdGenerator;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 const LOGIN_WEB3_NONCE_CACHE: &str = "blog:auth:login:web3:nonce";
 const NONCE_EXPIRATION_SECONDS: u64 = 300;
@@ -20,19 +21,13 @@ pub trait LoginService: Send + Sync {
 
 pub struct LoginServiceImpl {
     pub redis_client: RedisClient,
-    pub id_generator: Arc<Mutex<SnowflakeIdGenerator>>,
+    pub id_generator: Arc<RwLock<SnowflakeIdGenerator>>,
 }
 
 #[async_trait]
 impl LoginService for LoginServiceImpl {
     async fn get_login_web3_nonce(&self, chain_id: i64) -> Result<String, AppError> {
-        let nonce_id = {
-            let mut id_gen = self
-                .id_generator
-                .lock()
-                .map_err(|_| AppError::Internal("Generator lock poisoned".into()))?;
-            id_gen.generate().to_string()
-        };
+        let nonce_id = self.id_generator.write().await.generate().to_string();
 
         let redis_key = format!("{}:{}", LOGIN_WEB3_NONCE_CACHE, nonce_id);
         let value = chain_id.to_string();
