@@ -42,9 +42,13 @@ pub async fn proxy_request(
                 .into_response()
         })?;
 
-    // 构建目标 URL（去掉路径前缀）
+    // 构建目标 URL（去掉路径前缀），保留查询字符串
     let target_path = path.strip_prefix(&service.path_prefix).unwrap_or(path);
-    let target_url = format!("{}{}", service.url, target_path);
+    let target_url = if let Some(query) = uri.query() {
+        format!("{}{}?{}", service.url, target_path, query)
+    } else {
+        format!("{}{}", service.url, target_path)
+    };
 
     // 使用熔断器保护调用
     let http_client = state.http_client.clone();

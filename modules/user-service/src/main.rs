@@ -35,7 +35,13 @@ async fn main() -> Result<(), AppError> {
     let grpc_bind_addr = app_config.server.grpc_addr.clone();
 
     // 2. 初始化应用（基础设施 + 业务服务）
-    let app_state = init_app_state(app_config).await?;
+    let app_state = match init_app_state(app_config).await {
+        Ok(state) => state,
+        Err(e) => {
+            tracing::error!("User service startup failed: {}", e);
+            return Err(e);
+        }
+    };
 
     // 3. 启动服务器
     let http_server = start_http_server(app_state.clone(), http_bind_addr);

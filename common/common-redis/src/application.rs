@@ -30,4 +30,9 @@ impl Redis {
 
         format!("redis://{auth}{}:{}/{}", self.host, self.port, self.db)
     }
+
+    /// 用于日志打印的安全 URL（不含密码）
+    pub fn url_safe(&self) -> String {
+        format!("redis://{}:{}/{}", self.host, self.port, self.db)
+    }
 }

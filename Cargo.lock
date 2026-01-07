@@ -397,6 +397,7 @@ dependencies = [
  "redis",
  "serde",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

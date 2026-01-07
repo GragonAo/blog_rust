@@ -13,7 +13,11 @@ const NONCE_EXPIRATION_SECONDS: u64 = 300;
 
 #[async_trait]
 pub trait LoginService: Send + Sync {
-    async fn get_login_web3_nonce(&self, chain_id: i64) -> Result<String, AppError>;
+    async fn get_login_web3_nonce(
+        &self,
+        chain_id: i64,
+        address: String,
+    ) -> Result<String, AppError>;
     async fn login_web3_wallet(
         &self,
         signature: String,
@@ -36,11 +40,18 @@ pub struct LoginServiceImpl {
 
 #[async_trait]
 impl LoginService for LoginServiceImpl {
-    async fn get_login_web3_nonce(&self, chain_id: i64) -> Result<String, AppError> {
+    async fn get_login_web3_nonce(
+        &self,
+        chain_id: i64,
+        address: String,
+    ) -> Result<String, AppError> {
         let nonce_id = self.id_generator.write().await.generate().to_string();
 
         let redis_key = format!("{}:{}", LOGIN_WEB3_NONCE_CACHE, nonce_id);
-        let value = chain_id.to_string();
+
+        // 将 chain_id 和 address 组合存储
+        let value = format!("{}:{}", chain_id, address);
+
         self.redis_client
             .set_ex(&redis_key, &value, NONCE_EXPIRATION_SECONDS)
             .await?;
@@ -53,24 +64,43 @@ impl LoginService for LoginServiceImpl {
         signature: String,
         message: String,
     ) -> Result<(i64, String), AppError> {
+        // 1. 从消息中提取 Nonce
         let nonce = message
             .split(": ")
-            .nth(1)
+            .last()
             .ok_or_else(|| AppError::Internal("Invalid message format".into()))?;
+
         let redis_key = format!("{}:{}", LOGIN_WEB3_NONCE_CACHE, nonce);
-        let chain_id_str = self
+
+        // 2. 获取并立即删除
+        let cached_data = self
             .redis_client
             .get_str(&redis_key)
             .await?
             .ok_or_else(|| AppError::Internal("Nonce expired or invalid".into()))?;
+
         self.redis_client.del(&redis_key).await?;
 
-        let chain_id = chain_id_str
+        // 3. 解析缓存的数据 "chain_id:address"
+        let parts: Vec<&str> = cached_data.splitn(2, ':').collect();
+        if parts.len() != 2 {
+            return Err(AppError::Internal("Corrupted session data".into()));
+        }
+
+        let chain_id = parts[0]
             .parse::<i64>()
-            .map_err(|_| AppError::Internal("Invalid chain ID stored in nonce".into()))?;
+            .map_err(|_| AppError::Internal("Invalid chain ID".into()))?;
+        let expected_address = parts[1].to_lowercase();
+
+        // 4. Web3 恢复地址
         let chain = Chain::try_from(chain_id)?;
-        // 调用底层Web3工具：换出地址
         let recovered_addr = Web3Recover::get_address(chain, &message, &signature)?;
+
+        // 5. 恢复出的地址必须等于申请 Nonce 时填写的地址
+        if recovered_addr.to_lowercase() != expected_address {
+            return Err(AppError::Internal("Signature address mismatch".into()));
+        }
+
         Ok((chain_id, recovered_addr))
     }
 

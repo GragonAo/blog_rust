@@ -17,16 +17,31 @@ pub struct RedisClient {
 
 impl RedisClient {
     pub async fn new(redis_config: application::Redis) -> AppResult<Self> {
-        let manager = RedisConnectionManager::new(redis_config.url())
-            .map_err(|e| AppError::redis(format!("create manager failed: {e}")))?;
+        let url_safe = redis_config.url_safe();
+        let manager = RedisConnectionManager::new(redis_config.url()).map_err(|e| {
+            AppError::redis(format!("create manager failed (url={}): {e}", url_safe))
+        })?;
 
         let pool = Pool::builder()
             .max_size(redis_config.pool_size)
             .build(manager)
             .await
-            .map_err(|e| AppError::redis(format!("create pool failed: {e}")))?;
+            .map_err(|e| {
+                AppError::redis(format!(
+                    "create pool failed (url={}, pool_size={}): {e}",
+                    url_safe, redis_config.pool_size
+                ))
+            })?;
+        let client = Self { pool };
+        // 启动即校验 Redis 可用性，避免运行期才发现连接问题
+        client.ping().await.map_err(|e| {
+            AppError::redis(format!(
+                "initial PING failed (url={}): {}. Hint: ensure Redis is running and reachable.",
+                url_safe, e
+            ))
+        })?;
 
-        Ok(Self { pool })
+        Ok(client)
     }
 
     pub async fn get(&self) -> AppResult<Connection<'_>> {
@@ -50,9 +65,12 @@ impl RedisClient {
     /// 设置带过期时间的字符串 (SETEX)
     pub async fn set_ex(&self, key: &str, value: &str, seconds: u64) -> AppResult<()> {
         let mut conn = self.get().await?;
-        conn.set_ex(key, value, seconds)
-            .await
-            .map_err(|e| AppError::redis(format!("SETEX failed: {e}")))
+        conn.set_ex(key, value, seconds).await.map_err(|e| {
+            AppError::redis(format!(
+                "SETEX failed (key={}, ttl={}s): {}",
+                key, seconds, e
+            ))
+        })
     }
 
     /// 检查 Key 是否存在
@@ -60,7 +78,7 @@ impl RedisClient {
         let mut conn = self.get().await?;
         conn.exists(key)
             .await
-            .map_err(|e| AppError::redis(format!("EXISTS failed: {e}")))
+            .map_err(|e| AppError::redis(format!("EXISTS failed (key={}): {}", key, e)))
     }
 
     /// 删除 Key
@@ -68,7 +86,7 @@ impl RedisClient {
         let mut conn = self.get().await?;
         conn.del(key)
             .await
-            .map_err(|e| AppError::redis(format!("DEL failed: {e}")))
+            .map_err(|e| AppError::redis(format!("DEL failed (key={}): {}", key, e)))
     }
 
     /// 获取字符串值
@@ -76,7 +94,7 @@ impl RedisClient {
         let mut conn = self.get().await?;
         conn.get(key)
             .await
-            .map_err(|e| AppError::redis(format!("GET failed: {e}")))
+            .map_err(|e| AppError::redis(format!("GET failed (key={}): {}", key, e)))
     }
 }
 

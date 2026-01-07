@@ -10,3 +10,4 @@ redis.workspace = true
 serde.workspace = true
 bb8-redis.workspace = true
 tokio.workspace = true
+tracing.workspace = true
