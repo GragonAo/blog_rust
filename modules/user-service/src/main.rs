@@ -9,27 +9,18 @@ mod startup;
 pub use startup::AppState;
 
 use common_core::AppError;
+use common_tracing::TracingService;
 use startup::{init_app_config, init_app_state, start_grpc_server, start_http_server};
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    // 初始化日志（输出到文件和控制台）
-    let file_appender = tracing_appender::rolling::daily("logs", "user-service.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    use tracing_subscriber::fmt::writer::MakeWriterExt;
-    let stdout = std::io::stdout.and(non_blocking);
-
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .with_writer(stdout)
-        .compact()
-        .init();
-
-    tracing::info!("🚀 User Service starting...");
-
     // 1. 加载配置
     let app_config = init_app_config()?;
+    // 初始化日志
+    let _guard = TracingService::init(&app_config.logs);
+
+    tracing::info!("🚀 {} Service starting...", app_config.server.name);
+
     let http_bind_addr = app_config.server.bind_addr.clone();
     let grpc_bind_addr = app_config.server.grpc_addr.clone();
 
@@ -44,7 +35,7 @@ async fn main() -> Result<(), AppError> {
 
     // 3. 启动服务器
     let http_server = start_http_server(app_state.clone(), http_bind_addr);
-    let grpc_server = start_grpc_server(app_state, grpc_bind_addr);
+    let grpc_server = start_grpc_server(app_state, grpc_bind_addr.unwrap());
 
     // 4. 等待服务器运行
     let _ = tokio::try_join!(http_server, grpc_server)

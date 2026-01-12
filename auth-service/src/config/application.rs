@@ -1,24 +1,15 @@
-use common_core::AppError;
+use common_core::{AppError, application::Snowflake};
 use common_redis::application::Redis;
+use common_tracing::application::Logs;
+use common_web::application::Server;
 use serde::Deserialize;
 use std::fs;
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Snowflake {
-    pub machine_id: i32,
-    pub node_id: i32,
-}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct JWT {
     pub secret: String,
     pub expiration_hours: u64,
     pub refresh_expiration_hours: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Server {
-    pub bind_addr: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -33,6 +24,7 @@ pub struct AppConfig {
     pub jwt: JWT,
     pub server: Server,
     pub services: Services,
+    pub logs: Logs,
 }
 
 impl AppConfig {
@@ -53,7 +45,7 @@ impl AppConfig {
         let possible_paths = [
             "src/application.yaml",
             "application.yaml",
-            "auth-service/src/application.yaml",
+            "auth-service/application.yaml",
         ];
         for path in &possible_paths {
             if let Ok(config) = Self::from_yaml(path) {

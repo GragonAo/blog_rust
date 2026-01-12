@@ -1,5 +1,7 @@
-use common_core::AppError;
+use common_core::{AppError, application::Snowflake};
 use common_redis::application::Redis;
+use common_tracing::application::Logs;
+use common_web::application::Server;
 use serde::Deserialize;
 use std::fs;
 
@@ -34,28 +36,12 @@ impl Database {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Logs {
-    pub path: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Snowflake {
-    pub machine_id: i32,
-    pub node_id: i32,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Server {
-    pub name: String,
-    pub bind_addr: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
     pub redis: Redis,
     pub database: Database,
     pub snowflake: Snowflake,
     pub server: Server,
+    pub logs: Logs,
 }
 
 impl AppConfig {

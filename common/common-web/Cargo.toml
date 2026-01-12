@@ -8,3 +8,4 @@ common-core.workspace = true
 
 serde.workspace = true
 axum.workspace = true
+tracing.workspace = true

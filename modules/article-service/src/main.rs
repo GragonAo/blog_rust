@@ -6,29 +6,18 @@ mod routes;
 mod services;
 mod startup;
 
-pub use startup::AppState;
-
 use common_core::AppError;
+use common_tracing::TracingService;
 use startup::{init_app_config, init_app_state, start_http_server};
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     // 1. 加载配置
     let app_config = init_app_config()?;
-    // 初始化日志（输出到文件和控制台）
-    let file_appender = tracing_appender::rolling::daily("", "");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    use tracing_subscriber::fmt::writer::MakeWriterExt;
-    let stdout = std::io::stdout.and(non_blocking);
-
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .with_writer(stdout)
-        .compact()
-        .init();
-
-    tracing::info!("🚀 User Service starting...");
+    let service_name = app_config.server.name.clone();
+    // 初始化日志
+    let _guard = TracingService::init(&app_config.logs);
+    tracing::info!("🚀 {} Service starting...", service_name);
 
     let http_bind_addr = app_config.server.bind_addr.clone();
 
@@ -36,7 +25,7 @@ async fn main() -> Result<(), AppError> {
     let app_state = match init_app_state(app_config).await {
         Ok(state) => state,
         Err(e) => {
-            tracing::error!("User service startup failed: {}", e);
+            tracing::error!("{} service startup failed: {}", service_name, e);
             return Err(e);
         }
     };

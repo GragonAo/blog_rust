@@ -11,11 +11,13 @@ pub trait UserRepository: Send + Sync {
         executor: &mut PgConnection,
         id: i64,
     ) -> Result<Option<User>, AppError>;
+    #[allow(dead_code)]
     async fn find_by_username(
         &self,
         executor: &mut PgConnection,
         username: &str,
     ) -> Result<Option<User>, AppError>;
+    #[allow(dead_code)]
     async fn find_by_email(
         &self,
         executor: &mut PgConnection,
@@ -27,6 +29,7 @@ pub trait UserRepository: Send + Sync {
 pub struct UserRepositoryImpl;
 
 impl UserRepositoryImpl {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }

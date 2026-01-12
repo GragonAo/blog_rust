@@ -1,4 +1,5 @@
 server:
+  name: gateway-service
   bind_addr: "0.0.0.0:8080"
 
 # CORS 跨域配置
@@ -57,11 +58,19 @@ circuit_breaker:
 # 后端服务配置
 services:
   auth:
-    url: "http://localhost:5020"
+    url: "http://127.0.0.1:5020"
     path_prefix: "/api/auth"
     timeout_seconds: 10
   
   user:
-    url: "http://localhost:5010"
+    url: "http://127.0.0.1:5010"
     path_prefix: "/api/user"
     timeout_seconds: 10
+
+  article:
+    url: "http://127.0.0.1:5030"
+    path_prefix: "/api/article"
+    timeout_seconds: 10
+
+logs:
+  path: logs/gateway-service.log

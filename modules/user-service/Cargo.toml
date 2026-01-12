@@ -8,6 +8,7 @@ common-core.workspace = true
 common-redis.workspace = true
 common-web.workspace = true
 common-proto.workspace = true
+common-tracing.workspace = true
 
 axum.workspace = true
 tokio.workspace = true
@@ -22,5 +23,3 @@ chrono.workspace = true
 tonic.workspace = true
 prost.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
-tracing-appender.workspace = true

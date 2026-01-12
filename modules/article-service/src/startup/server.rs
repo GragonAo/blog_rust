@@ -1,6 +1,8 @@
 use axum::{Router, routing::get};
 use tokio::task::JoinHandle;
 
+use crate::routes::article_route;
+
 use super::AppState;
 
 /// 启动 HTTP 服务器
@@ -8,7 +10,7 @@ pub fn start_http_server(app_state: AppState, bind_addr: String) -> JoinHandle<(
     tokio::spawn(async move {
         let app = Router::new()
             .route("/health", get(|| async { "ok" }))
-            // .merge(user_router::router())
+            .merge(article_route::router())
             .with_state(app_state);
 
         let listener = tokio::net::TcpListener::bind(&bind_addr)

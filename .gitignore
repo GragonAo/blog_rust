@@ -1,1 +1,24 @@
+# Build output
 /target
+**/target/
+
+# Logs & runtime artifacts
+logs/
+**/*.log
+*.log
+
+# Env/config secrets
+.env
+.env.*
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Rust tooling
+**/*.rs.bk
+
+# Misc
+*.swp
+*.swo
+*.tmp

@@ -80,6 +80,7 @@ pub async fn proxy_request(
         )
             .into_response()),
         Err(crate::middleware::circuit_breaker::CircuitBreakerError::ServiceError(e)) => {
+            tracing::error!("Service call failed: {:?}", e);
             Err((StatusCode::BAD_GATEWAY, format!("Backend error: {}", e)).into_response())
         }
     }

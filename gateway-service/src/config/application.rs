@@ -1,20 +1,18 @@
 use common_core::AppError;
+use common_tracing::application::Logs;
+use common_web::application::Server;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
-    pub server: ServerConfig,
+    pub server: Server,
     pub cors: CorsConfig,
     pub jwt: JwtConfig,
     pub rate_limit: RateLimitConfig,
     pub circuit_breaker: CircuitBreakerConfig,
     pub services: HashMap<String, ServiceConfig>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ServerConfig {
-    pub bind_addr: String,
+    pub logs: Logs,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -65,7 +63,7 @@ pub struct ServiceConfig {
 
 impl AppConfig {
     pub fn from_default_yaml() -> Result<Self, AppError> {
-        let config_path = "gateway-service/src/application.yaml";
+        let config_path = "gateway-service/application.yaml";
         let content = fs::read_to_string(config_path)
             .map_err(|e| AppError::internal(format!("Failed to read config: {}", e)))?;
 

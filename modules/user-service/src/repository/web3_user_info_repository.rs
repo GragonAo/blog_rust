@@ -31,6 +31,7 @@ pub trait Web3UserRepository: Send + Sync {
 pub struct Web3UserRepositoryImpl;
 
 impl Web3UserRepositoryImpl {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }

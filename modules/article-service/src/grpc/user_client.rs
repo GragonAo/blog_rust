@@ -4,12 +4,14 @@ use std::time::Duration;
 use tonic::transport::Channel;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct UserServiceGrpcClient {
     client: UserServiceClient<Channel>,
 }
 
 impl UserServiceGrpcClient {
     /// 创建 用户服务 gRPC 客户端
+    #[allow(dead_code)]
     pub async fn new(addr: String) -> Result<UserServiceClient<Channel>, AppError> {
         let channel = Channel::from_shared(addr)
             .map_err(|e| AppError::internal(format!("Invalid gRPC address: {}", e)))?

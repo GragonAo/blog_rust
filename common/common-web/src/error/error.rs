@@ -17,6 +17,9 @@ impl From<AppError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
+        // Log the error
+        tracing::error!(error = ?self.0, "API Error occurred");
+
         let (status, msg) = match &self.0 {
             AppError::Internal(s) => (StatusCode::INTERNAL_SERVER_ERROR, s.clone()),
             AppError::Redis(s) => (StatusCode::INTERNAL_SERVER_ERROR, s.clone()),

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 common-core.workspace = true
 common-web.workspace = true
+common-tracing.workspace = true
 
 axum.workspace = true
 tokio.workspace = true
@@ -21,7 +22,5 @@ jsonwebtoken.workspace = true
 governor.workspace = true
 
 tracing.workspace = true
-tracing-subscriber.workspace = true
-tracing-appender.workspace = true
 
 anyhow.workspace = true

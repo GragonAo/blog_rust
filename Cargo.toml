@@ -8,7 +8,9 @@ members = [
     "common/common-proto",
     "auth-service",
     "modules/user-service",
-    "gateway-service", "modules/article-service",
+    "gateway-service",
+    "modules/article-service",
+    "common/common-tracing",
 ]
 
 [workspace.dependencies]
@@ -18,6 +20,7 @@ common-redis = { path = "common/common-redis" }
 common-web = { path = "common/common-web" }
 common-web3 = { path = "common/common-web3" }
 common-proto = { path = "common/common-proto" }
+common-tracing = { path = "common/common-tracing" }
 
 # --- Web 框架与网络 ---
 axum = "0.8.8"
@@ -30,7 +33,7 @@ prost = "0.14.1"
 prost-types = "0.14.1"
 tower = { version = "0.5", features = ["util"] }
 futures-util = "0.3"
-tonic-prost="0.14.2"
+tonic-prost = "0.14.2"
 
 # --- 序列化与数据格式 ---
 serde = { version = "1.0", features = ["derive"] }
@@ -68,6 +71,8 @@ web3 = "0.19.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2"
+tracing-panic = "0.1.2"
+backtrace = "0.3.76"
 
 # --- 网关特有依赖 ---
 reqwest = { version = "0.12", features = ["json"] }

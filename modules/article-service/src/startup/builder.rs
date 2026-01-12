@@ -4,7 +4,10 @@ use snowflake::SnowflakeIdGenerator;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 
-use crate::config::application::AppConfig;
+use crate::{
+    config::application::AppConfig,
+    services::article_service::{ArticleService, ArticleServiceImpl},
+};
 
 use super::AppState;
 
@@ -34,13 +37,14 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
     )));
 
     // 4. 初始化业务服务
-    // let user_service = Arc::new(UserServiceImpl {
-    //     redis_client: redis_client.clone(),
-    //     db_pool: db_pool.clone(),
-    //     id_generator: id_generator.clone(),
-    // }) as Arc<dyn UserService>;
+    let article_service = Arc::new(ArticleServiceImpl {
+        redis_client: redis_client.clone(),
+        db_pool: db_pool.clone(),
+        id_generator: id_generator.clone(),
+    }) as Arc<dyn ArticleService>;
 
     Ok(AppState {
+        article_service,
         redis_client,
         db_pool,
         id_generator,

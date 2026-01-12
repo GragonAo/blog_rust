@@ -5,6 +5,7 @@ use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub struct UserServiceGrpcClient {
+    #[allow(dead_code)]
     client: UserServiceClient<Channel>,
 }
 
