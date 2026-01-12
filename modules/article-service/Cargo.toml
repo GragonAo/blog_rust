@@ -1,0 +1,26 @@
+[package]
+name = "article-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+common-core.workspace = true
+common-redis.workspace = true
+common-web.workspace = true
+common-proto.workspace = true
+
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yml.workspace = true
+async-trait.workspace = true
+anyhow.workspace = true
+rs-snowflake.workspace = true
+sqlx.workspace = true
+chrono.workspace = true
+tonic.workspace = true
+prost.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true

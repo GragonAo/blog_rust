@@ -54,6 +54,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "article-service"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "common-core",
+ "common-proto",
+ "common-redis",
+ "common-web",
+ "prost",
+ "rs-snowflake",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "sqlx",
+ "tokio",
+ "tonic",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -404,6 +429,8 @@ dependencies = [
 name = "common-web"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "common-core",
  "serde",
 ]
 

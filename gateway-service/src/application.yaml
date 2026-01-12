@@ -38,7 +38,7 @@ cors:
   max_age: 3600
 
 jwt:
-  secret: "your-jwt-secret-key-change-in-production"
+  secret: your_secret_key_change_in_production
   # 白名单路径（不需要 JWT 验证，支持前缀匹配）
   whitelist_paths:
     - "/api/auth/web3-login"  # 匹配 /api/auth/web3-login 及其子路径

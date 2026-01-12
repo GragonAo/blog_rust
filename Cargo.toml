@@ -8,7 +8,7 @@ members = [
     "common/common-proto",
     "auth-service",
     "modules/user-service",
-    "gateway-service",
+    "gateway-service", "modules/article-service",
 ]
 
 [workspace.dependencies]

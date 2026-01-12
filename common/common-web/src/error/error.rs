@@ -4,7 +4,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use common_core::AppError;
-use common_web::domain::r::R;
+
+use crate::domain::r::R;
 
 pub struct ApiError(pub AppError);
 

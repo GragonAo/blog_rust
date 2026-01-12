@@ -38,7 +38,7 @@ pub async fn jwt_auth(
         })?;
 
     // 验证 JWT
-    let _claims = JwtUtils::verify_token(state.app_config.jwt.secret.clone(), token.to_string())
+    let claims = JwtUtils::verify_token(state.app_config.jwt.secret.clone(), token.to_string())
         .map_err(|_| {
             tracing::warn!("Invalid or expired token for path: {}", path);
             (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response()
@@ -46,5 +46,11 @@ pub async fn jwt_auth(
 
     // 验证通过，继续处理请求
     tracing::debug!("JWT verification passed for path: {}", path);
+    // 将 claims 信息注入到 request header 中
+    let mut request = request;
+    request
+        .headers_mut()
+        .insert("x-user-id", claims.sub.to_string().parse().unwrap());
+
     Ok(next.run(request).await)
 }
