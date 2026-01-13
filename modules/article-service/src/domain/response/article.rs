@@ -1,12 +1,15 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::domain::model::article::{ArticleDetail, ArticleStatus, ArticleSummary};
+use crate::domain::{
+    model::article::{ArticleDetail, ArticleStatus, ArticleSummary},
+    response::authorship::AuthorshipRes,
+};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ArticleSummaryRes {
-    pub id: i64,
-    pub uid: i64,
+    pub id: String,
+    pub authorship: Option<AuthorshipRes>,
     pub title: String,
     pub description: String,
     pub status: ArticleStatus,
@@ -21,8 +24,8 @@ pub struct ArticleSummaryRes {
 impl From<ArticleSummary> for ArticleSummaryRes {
     fn from(summary: ArticleSummary) -> Self {
         Self {
-            id: summary.id,
-            uid: summary.uid,
+            id: summary.id.to_string(),
+            authorship: None,
             title: summary.title,
             description: summary.description,
             status: summary.status,
@@ -38,8 +41,8 @@ impl From<ArticleSummary> for ArticleSummaryRes {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ArticleDetailRes {
-    pub id: i64,
-    pub uid: i64,
+    pub id: String,
+    pub authorship: Option<AuthorshipRes>,
     pub title: String,
     pub description: String,
     pub content: String,
@@ -56,8 +59,8 @@ pub struct ArticleDetailRes {
 impl From<ArticleDetail> for ArticleDetailRes {
     fn from(detail: ArticleDetail) -> Self {
         Self {
-            id: detail.id,
-            uid: detail.uid,
+            id: detail.id.to_string(),
+            authorship: None,
             title: detail.title,
             description: detail.description,
             content: detail.content,

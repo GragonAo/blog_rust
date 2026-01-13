@@ -12,7 +12,10 @@ use crate::{
     domain::{
         bo::article_bo::{ArticleDetailBo, ArticleQuery},
         request::article::ArticleRequest,
-        response::article::{ArticleDetailRes, ArticleSummaryRes},
+        response::{
+            article::{ArticleDetailRes, ArticleSummaryRes},
+            authorship::AuthorshipRes,
+        },
     },
     startup::AppState,
 };
@@ -24,6 +27,8 @@ pub fn router() -> Router<AppState> {
         .route("/delete/{id}", delete(delete_article))
         .route("/detail/{id}", get(get_article_detail))
         .route("/list", get(get_article_list))
+        .route("/like/{id}", post(like_article))
+        .route("/collect/{id}", post(collect_article))
 }
 
 /// 创建文章
@@ -92,19 +97,38 @@ async fn delete_article(
 
 /// 获取文章详情
 async fn get_article_detail(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<R<ArticleDetailRes>>, ApiError> {
-    let article = state.article_service.get_article_details(id).await?;
+    // 使用service层的view_article方法，包含浏览统计
+    let article = state.article_service.view_article(id).await?;
     match article {
-        Some(a) => Ok(Json(R::ok(a.into()))),
+        Some(a) => {
+            let authorship_res = fetch_authorship_res(&mut state, a.uid).await?;
+            let res = ArticleDetailRes {
+                id: a.id.to_string(),
+                authorship: Some(authorship_res),
+                title: a.title,
+                description: a.description,
+                content: a.content,
+                status: a.status,
+                likes: a.likes,
+                views: a.views,
+                collects: a.collects,
+                cover_urls: a.cover_urls,
+                created_at: a.created_at,
+                updated_at: a.updated_at,
+                deleted_at: a.deleted_at,
+            };
+            Ok(Json(R::ok(res)))
+        }
         None => Err(ApiError(AppError::db("Article not found"))),
     }
 }
 
 /// 获取文章列表
 async fn get_article_list(
-    State(state): State<AppState>,
+    State(mut state): State<AppState>,
     Query(article_query): Query<ArticleQuery>,
     Query(page): Query<Page>,
 ) -> Result<Json<R<PageResult<ArticleSummaryRes>>>, ApiError> {
@@ -113,8 +137,14 @@ async fn get_article_list(
         .get_article_list(article_query, page)
         .await?;
 
-    let summary_list: Vec<ArticleSummaryRes> =
-        result.list.into_iter().map(|item| item.into()).collect();
+    // 获取每篇文章的作者信息
+    let mut summary_list: Vec<ArticleSummaryRes> = Vec::new();
+    for item in result.list.into_iter() {
+        let authorship_res = fetch_authorship_res(&mut state, item.uid).await?;
+        let mut summary_res: ArticleSummaryRes = item.into();
+        summary_res.authorship = Some(authorship_res);
+        summary_list.push(summary_res);
+    }
 
     Ok(Json(R::ok(PageResult {
         list: summary_list,
@@ -131,4 +161,55 @@ fn get_user_id_from_header(headers: &HeaderMap) -> Result<i64, ApiError> {
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<i64>().ok())
         .ok_or_else(|| ApiError(AppError::internal("User not authenticated")))
+}
+
+/// 辅助函数：获取作者信息响应对象
+async fn fetch_authorship_res(state: &mut AppState, uid: i64) -> Result<AuthorshipRes, ApiError> {
+    let authorship = state.authorship_service.get_authorship(uid).await?;
+
+    // 调用 gRPC 获取用户信息
+    let (username, avatar_url) = state
+        .user_grpc_client
+        .get_user_info(authorship.uid)
+        .await
+        .unwrap_or_else(|_| ("Unknown".to_string(), String::new()));
+
+    Ok(AuthorshipRes {
+        id: authorship.uid.to_string(),
+        name: username,
+        avatar_url,
+        like_count: authorship.like_count,
+        fellow_count: authorship.fellow_count,
+        collect_count: authorship.collect_count,
+        article_count: authorship.article_count_public,
+    })
+}
+
+/// 点赞文章
+/// 点赞文章
+async fn like_article(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<Json<R<()>>, ApiError> {
+    let _user_id = get_user_id_from_header(&headers)?;
+
+    // 调用service层的点赞方法
+    state.article_service.like_article(id).await?;
+
+    Ok(Json(R::ok(())))
+}
+
+/// 收藏文章
+async fn collect_article(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> Result<Json<R<()>>, ApiError> {
+    let _user_id = get_user_id_from_header(&headers)?;
+
+    // 调用service层的收藏方法
+    state.article_service.collect_article(id).await?;
+
+    Ok(Json(R::ok(())))
 }

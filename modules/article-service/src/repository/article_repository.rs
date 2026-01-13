@@ -53,6 +53,27 @@ pub trait ArticleRepository: Send + Sync {
         id: i64,
         uid: i64,
     ) -> Result<bool, AppError>;
+
+    async fn update_likes(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError>;
+
+    async fn update_views(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError>;
+
+    async fn update_collects(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError>;
 }
 
 pub struct ArticleRepositoryImpl;
@@ -220,5 +241,68 @@ impl ArticleRepository for ArticleRepositoryImpl {
         .await
         .map_err(|e| AppError::Db(format!("Failed to check article ownership: {}", e)))?;
         Ok(count.0 > 0)
+    }
+
+    async fn update_likes(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError> {
+        let sql = if increment >= 0 {
+            "UPDATE articles SET likes = likes + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        } else {
+            "UPDATE articles SET likes = GREATEST(0, likes + $1), updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        };
+        
+        sqlx::query(sql)
+            .bind(increment)
+            .bind(id)
+            .execute(executor)
+            .await
+            .map_err(|e| AppError::Db(format!("Failed to update article likes: {}", e)))?;
+        Ok(())
+    }
+
+    async fn update_views(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError> {
+        let sql = if increment >= 0 {
+            "UPDATE articles SET views = views + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        } else {
+            "UPDATE articles SET views = GREATEST(0, views + $1), updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        };
+        
+        sqlx::query(sql)
+            .bind(increment)
+            .bind(id)
+            .execute(executor)
+            .await
+            .map_err(|e| AppError::Db(format!("Failed to update article views: {}", e)))?;
+        Ok(())
+    }
+
+    async fn update_collects(
+        &self,
+        executor: &mut PgConnection,
+        id: i64,
+        increment: i32,
+    ) -> Result<(), AppError> {
+        let sql = if increment >= 0 {
+            "UPDATE articles SET collects = collects + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        } else {
+            "UPDATE articles SET collects = GREATEST(0, collects + $1), updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL"
+        };
+        
+        sqlx::query(sql)
+            .bind(increment)
+            .bind(id)
+            .execute(executor)
+            .await
+            .map_err(|e| AppError::Db(format!("Failed to update article collects: {}", e)))?;
+        Ok(())
     }
 }

@@ -8,7 +8,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-PROJECT_DIR="/home/gragon/work/rust/blog"
+# PROJECT_DIR="/home/gragon/work/rust/blog"
+PROJECT_DIR="/var/local/blog_rust"
 LOG_DIR="$PROJECT_DIR/logs"
 
 # 确保日志目录存在

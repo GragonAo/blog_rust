@@ -5,6 +5,7 @@ mod repository;
 mod routes;
 mod services;
 mod startup;
+mod utils;
 
 use common_core::AppError;
 use common_tracing::TracingService;

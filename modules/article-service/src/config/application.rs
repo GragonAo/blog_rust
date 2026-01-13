@@ -36,12 +36,18 @@ impl Database {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct Services {
+    pub user_service_grpc: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
     pub redis: Redis,
     pub database: Database,
     pub snowflake: Snowflake,
     pub server: Server,
     pub logs: Logs,
+    pub services: Services,
 }
 
 impl AppConfig {

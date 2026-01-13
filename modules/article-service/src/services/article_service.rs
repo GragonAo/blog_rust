@@ -12,14 +12,20 @@ use sqlx::PgPool;
 use tokio::sync::RwLock;
 
 use crate::{
+    domain::bo::authorship_bo::AuthorshipBo,
     domain::{
         bo::article_bo::{ArticleDetailBo, ArticleQuery},
         model::article::{ArticleDetail, ArticleStatus, ArticleSummary},
     },
-    repository::article_repository::{ArticleRepository, ArticleRepositoryImpl},
+    repository::{
+        article_repository::{ArticleRepository, ArticleRepositoryImpl},
+        authorship_repository::{AuthorshipRepository, AuthorshipRepositoryImpl},
+    },
+    with_transaction,
 };
 
 static ARTICLE_REPO: ArticleRepositoryImpl = ArticleRepositoryImpl;
+static AUTHORSHIP_REPO: AuthorshipRepositoryImpl = AuthorshipRepositoryImpl;
 
 /// 文章服务
 #[async_trait]
@@ -38,11 +44,18 @@ pub trait ArticleService: Send + Sync {
     /// 插入文章
     async fn insert(&self, article_detail_bo: ArticleDetailBo) -> Result<i64, AppError>;
 
-    /// 更新文章
-    async fn update(&self, article_detail_bo: ArticleDetailBo) -> Result<(), AppError>;
-
     /// 删除文章
     async fn delete(&self, article_id: i64) -> Result<(), AppError>;
+
+    // 浏览文章（增加浏览数和作者统计）
+    async fn view_article(&self, article_id: i64) -> Result<Option<ArticleDetail>, AppError>;
+    // 点赞文章（增加点赞数和作者统计）
+    async fn like_article(&self, article_id: i64) -> Result<(), AppError>;
+    // 收藏文章（增加收藏数和作者统计）
+    async fn collect_article(&self, article_id: i64) -> Result<(), AppError>;
+
+    /// 更新文章
+    async fn update(&self, article_detail_bo: ArticleDetailBo) -> Result<(), AppError>;
 
     /// 检查文章所有权
     async fn check_ownership(&self, article_id: i64, uid: i64) -> Result<bool, AppError>;
@@ -105,11 +118,6 @@ impl ArticleService for ArticleServiceImpl {
     }
 
     async fn insert(&self, article_detail_bo: ArticleDetailBo) -> Result<i64, AppError> {
-        let mut conn = self
-            .db_pool
-            .acquire()
-            .await
-            .map_err(|e| AppError::db(e.to_string()))?;
         let article_id = self.id_generator.write().await.real_time_generate();
         let now = Utc::now();
 
@@ -135,9 +143,24 @@ impl ArticleService for ArticleServiceImpl {
             deleted_at: None,
         };
 
-        ARTICLE_REPO.insert(&mut conn, &article).await?;
+        // 使用事务确保文章插入和作者统计更新的原子性
+        with_transaction!(&self.db_pool, |tx| async {
+            // 插入文章
+            ARTICLE_REPO.insert(tx, &article).await?;
 
-        Ok(article_id)
+            // 更新作者的文章数
+            let authorship_bo = AuthorshipBo {
+                uid: article.uid,
+                like_count: None,
+                fellow_count: None,
+                collect_count: None,
+                article_count_public: Some(1),
+                article_count_private: None,
+            };
+            AUTHORSHIP_REPO.upsert(tx, &authorship_bo).await?;
+
+            Ok(article_id)
+        })
     }
 
     async fn update(&self, article_detail_bo: ArticleDetailBo) -> Result<(), AppError> {
@@ -174,12 +197,105 @@ impl ArticleService for ArticleServiceImpl {
     }
 
     async fn delete(&self, article_id: i64) -> Result<(), AppError> {
-        let mut conn = self
-            .db_pool
-            .acquire()
-            .await
-            .map_err(|e| AppError::db(e.to_string()))?;
-        ARTICLE_REPO.delete_by_id(&mut conn, article_id).await
+        // 使用事务确保删除和统计更新的原子性
+        with_transaction!(&self.db_pool, |tx| async {
+            // 获取文章信息，用于后续更新作者数据
+            let article = ARTICLE_REPO.find_by_id(tx, article_id).await?;
+
+            // 执行删除
+            ARTICLE_REPO.delete_by_id(tx, article_id).await?;
+
+            // 如果文章存在，更新作者的文章数（减少）
+            if let Some(article) = article {
+                let authorship_bo = AuthorshipBo {
+                    uid: article.uid,
+                    like_count: None,
+                    fellow_count: None,
+                    collect_count: None,
+                    article_count_public: Some(-1),
+                    article_count_private: None,
+                };
+                AUTHORSHIP_REPO.upsert(tx, &authorship_bo).await?;
+            }
+
+            Ok(())
+        })
+    }
+
+    async fn view_article(&self, article_id: i64) -> Result<Option<ArticleDetail>, AppError> {
+        // 先获取文章详情
+        let article = self.get_article_details(article_id).await?;
+
+        if let Some(ref a) = article {
+            // 使用事务同时更新文章浏览数和作者统计
+            with_transaction!(&self.db_pool, |tx| async {
+                ARTICLE_REPO.update_views(tx, a.id, 1).await?;
+
+                let authorship_bo = AuthorshipBo {
+                    uid: a.uid,
+                    like_count: None,
+                    fellow_count: Some(1), // 浏览数统计
+                    collect_count: None,
+                    article_count_public: None,
+                    article_count_private: None,
+                };
+                AUTHORSHIP_REPO.upsert(tx, &authorship_bo).await?;
+
+                Ok(())
+            })?;
+        }
+
+        Ok(article)
+    }
+
+    async fn like_article(&self, article_id: i64) -> Result<(), AppError> {
+        // 获取文章信息
+        let article = self
+            .get_article_details(article_id)
+            .await?
+            .ok_or_else(|| AppError::db("Article not found"))?;
+
+        // 使用事务同时更新文章点赞数和作者统计
+        with_transaction!(&self.db_pool, |tx| async {
+            ARTICLE_REPO.update_likes(tx, article.id, 1).await?;
+
+            let authorship_bo = AuthorshipBo {
+                uid: article.uid,
+                like_count: Some(1),
+                fellow_count: None,
+                collect_count: None,
+                article_count_public: None,
+                article_count_private: None,
+            };
+            AUTHORSHIP_REPO.upsert(tx, &authorship_bo).await?;
+
+            Ok(())
+        })
+    }
+
+    async fn collect_article(&self, article_id: i64) -> Result<(), AppError> {
+        // 获取文章信息
+        let article = self
+            .get_article_details(article_id)
+            .await?
+            .ok_or_else(|| AppError::db("Article not found"))?;
+
+        // 使用事务同时更新文章收藏数和作者统计
+        with_transaction!(&self.db_pool, |tx| async {
+            ARTICLE_REPO.update_collects(tx, article.id, 1).await?;
+
+            let authorship_bo = AuthorshipBo {
+                uid: article.uid,
+                like_count: None,
+                fellow_count: None,
+                collect_count: Some(1),
+                article_count_public: None,
+                article_count_private: None,
+            };
+            AUTHORSHIP_REPO.upsert(tx, &authorship_bo).await?;
+
+            Ok(())
+        })
     }
 
     async fn check_ownership(&self, article_id: i64, uid: i64) -> Result<bool, AppError> {

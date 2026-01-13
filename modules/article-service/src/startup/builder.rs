@@ -6,7 +6,11 @@ use std::sync::Arc;
 
 use crate::{
     config::application::AppConfig,
-    services::article_service::{ArticleService, ArticleServiceImpl},
+    grpc::user_client::UserServiceGrpcClient,
+    services::{
+        article_service::{ArticleService, ArticleServiceImpl},
+        authorship_service::{AuthorshipService, AuthorshipServiceImpl},
+    },
 };
 
 use super::AppState;
@@ -36,7 +40,18 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
         app_config.snowflake.node_id,
     )));
 
-    // 4. 初始化业务服务
+    // 4. 初始化 gRPC 客户端
+    let user_grpc_client =
+        UserServiceGrpcClient::new(app_config.services.user_service_grpc.clone()).await?;
+
+    // 5. 先初始化 AuthorshipService
+    let authorship_service = Arc::new(AuthorshipServiceImpl {
+        redis_client: redis_client.clone(),
+        db_pool: db_pool.clone(),
+        id_generator: id_generator.clone(),
+    }) as Arc<dyn AuthorshipService>;
+
+    // 6. 再初始化 ArticleService（注入 AuthorshipService）
     let article_service = Arc::new(ArticleServiceImpl {
         redis_client: redis_client.clone(),
         db_pool: db_pool.clone(),
@@ -45,6 +60,8 @@ pub async fn init_app_state(app_config: AppConfig) -> Result<AppState, AppError>
 
     Ok(AppState {
         article_service,
+        authorship_service,
+        user_grpc_client,
         redis_client,
         db_pool,
         id_generator,
